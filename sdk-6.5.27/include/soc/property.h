@@ -11446,6 +11446,9 @@
  */
 #define spn_BS_PLL_HOLDOVER_ENABLE  "bs_pll_holdover_enable"
 
+/* Enable AG5648 LEDPROC values */
+#define spn_LEDPROC_AG5648 "ledproc_ag5648"
+
 /* Enable AG7648 LEDPROC remap thread */
 #define spn_LEDPROC_AG7648 "ledproc_ag7648"
 
@@ -12743,6 +12746,7 @@
   "learning_fifo_dma_threshold", \
   "learning_fifo_dma_timeout", \
   "led_intensity", \
+  "ledproc_ag5648", \
   "ledproc_ag7648", \
   "line_client_calendar", \
   "line_port_calendar", \

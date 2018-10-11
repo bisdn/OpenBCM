@@ -642,16 +642,128 @@ ledproc_linkscan_cb(int unit, soc_port_t port, bcm_port_info_t *info)
 #endif /* BCM_TOMAHAWK2_SUPPORT */
 
     /* coverity[overrun-local:FALSE] */
-    portdata = soc_pci_read(unit,
-                     led_info[led_ix].dram_base + CMIC_LED_REG_SIZE * byte);
 
-    if (info->linkstatus == BCM_PORT_LINK_STATUS_UP) {
-        portdata |= 0x01;
+    if (soc_property_get(unit, spn_LEDPROC_AG5648, 0) == 1) {
+        /* DNI_AG5648_50G_Start */
+
+        int led0byte[] = {192, 193, 194, 195, 196, 197, 198, 199, 200,
+                          201, 202, 203, 212, 213, 214, 215, 204, 205,
+                          206, 207, 164, 165, 166, 167, 160, 161, 162,
+                          163, 180, 181, 182, 183, 168, 169, 170, 171};
+        int led1byte[] = {192, 193, 194, 195, 196, 197, 198, 199, 208,
+                          209, 210, 211, 212, 213, 214, 215, 160, 161,
+                          162, 163, 164, 165, 166, 167, 169, 168, 171,
+                          170, 176, 177, 178, 179, 180, 181, 182, 183};
+        int led_count = 0, led_totallane = 36;
+
+        /*
+         * This program will set the led_ix = 0, for each of the 18 ports(12 SFP + 6 QSFP).
+         * This program will set the led_ix = 1, for each of the 36 ports(36 SFP).
+         *
+         * SFP Port LED bit description:
+         * ----------------------------------------------
+         *  LED bit              || LED 0       | LED 1
+         * ----------------------------------------------
+         *  Port/Lane Indication || Lane 0      | Lane 0
+         *  Speed                || 25G/10G     | 10G
+         *  LED Colour           || Green/Amber | Amber
+         * ----------------------------------------------
+         *
+         * QSFP Port LED bit description:
+         * ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+         *  LED bit              || LED 0             | LED 1             | LED 2              | LED 3       | LED 4  | LED 5  | LED 6             | LED 7  | LED 8
+         * ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+         *  Port/Lane Indication || Lane 0            | Lane 0            | Lane 0             | Lane 1      | Lane 1 | Lane 1 | Lane 2            | Lane 2 | Lane 2
+         *  Speed                || 50G/25G/10G       | 100G/50G/40G      | 50G/40G/10G        | 25G/10G     | None   | 10G    | 50G/25G/10G       | 50G    | 50G/10G
+         *  LED Colour           || White/Blue/Purple | Green/White/Amber | White/Amber/Purple | Blue/Purple |        | Purple | White/Blue/Purple | White  | White/Purple
+         * ----------------------------------------------------------------------------------------------------------------------------------------------------------------
+         *                        | LED 9       | LED 10 | LED 11
+         *                        --------------------------------
+         *                        | Lane 3      | Lane 3 | Lane 3
+         *                        | 25G/10G     | None   | 10G
+         *                        | Blue/Purple |        | Purple
+         *                        --------------------------------
+         *
+         *  LED bits are already handled by C code, therefore, this ASM program will
+         *  fetch the corresponding bit from the assigned memory bit.
+         *
+         *  SFP Port LED (one SFP port has one lane):
+         * ---------------------------------------------------------------------------------
+         *  Memory Address \ bit      || 7 | 6 | 5 | 4 | 3     | 2 | 1     | 0
+         * ---------------------------------------------------------------------------------
+         *  portStatusBaseAddress     ||   |   |   |   | LED 0 |   | LED 1 | Lane 0 Link-up
+         * ---------------------------------------------------------------------------------
+         *
+         *  QSFP Port LED (one QSFP port has four lanes):
+         * -------------------------------------------------------------------------------------
+         *  Memory Address \ bit      || 7 | 6 | 5 | 4 | 3     | 2     | 1     | 0
+         * -------------------------------------------------------------------------------------
+         *  portStatusBaseAddress     ||   |   |   |   | LED 0 | LED 1 | LED 2 | Lane 0 Link-up
+         *  portStatusBaseAddress + 1 ||   |   |   |   | LED 3 |       | LED 5 | Lane 1 Link-up
+         *  portStatusBaseAddress + 2 ||   |   |   |   | LED 6 | LED 7 | LED 8 | Lane 2 Link-up
+         *  portStatusBaseAddress + 3 ||   |   |   |   | LED 9 |       | LED 11| Lane 3 Link-up
+         * -------------------------------------------------------------------------------------
+         */
+
+#define BIT_LINK_UP 0x01    /* 00000001 */
+#define SPEED_BIT_MASK 0x0F /* 00001111 */
+#define SPEED_BIT_100G 0x04 /* 00000100 */
+#define SPEED_BIT_50G 0x0E  /* 00001110 */
+#define SPEED_BIT_40G 0x06  /* 00000110 */
+#define SPEED_BIT_25G 0x08  /* 00001000 */
+#define SPEED_BIT_10G 0x0A  /* 00001010 */
+
+        if (info != NULL) {
+          /* Byte_remap led0 and led1 */
+          if (led_ix == 0) {
+            for (led_count = 0; led_count < led_totallane; led_count++) {
+              if (byte == led0byte[led_count]) {
+                break;
+              }
+            }
+            byte = LS_LED_DATA_OFFSET_A0 + led_count;
+          } else if (led_ix == 1) {
+            for (led_count = 0; led_count < led_totallane; led_count++) {
+              if (byte == led1byte[led_count]) {
+                break;
+              }
+            }
+            byte = LS_LED_DATA_OFFSET_A0 + led_count;
+          }
+
+          portdata = 0;
+          if (info->linkstatus == BCM_PORT_LINK_STATUS_UP) {
+            portdata |= BIT_LINK_UP;
+
+            /* Set LED bits */
+            if (info->speed == 10000) { /* Set 10G LED */
+              portdata |= SPEED_BIT_10G;
+            } else if (info->speed == 25000) { /* Set 25G LED */
+              portdata |= SPEED_BIT_25G;
+            } else if (info->speed == 40000) { /* Set 40G LED */
+              portdata |= SPEED_BIT_40G;
+            } else if (info->speed == 50000) { /* Set 50G LED */
+              portdata |= SPEED_BIT_50G;
+            } else if (info->speed == 100000) { /* Set 100G LED */
+              portdata |= SPEED_BIT_100G;
+            }
+          } else {
+            portdata &= ~SPEED_BIT_MASK; /* Clear link/LED bits */
+          }
+        }
+        /* DNI_AG5648_50G_End */
     } else {
-        portdata &= ~0x01;
-    }
+        portdata = soc_pci_read(unit,
+                         led_info[led_ix].dram_base + CMIC_LED_REG_SIZE * byte);
 
-    portdata &= ~0x80;
+        if (info->linkstatus == BCM_PORT_LINK_STATUS_UP) {
+            portdata |= 0x01;
+        } else {
+            portdata &= ~0x01;
+        }
+
+        portdata &= ~0x80;
+    }
 
     soc_pci_write(unit, led_info[led_ix].dram_base + CMIC_LED_REG_SIZE * byte,
                       portdata);
