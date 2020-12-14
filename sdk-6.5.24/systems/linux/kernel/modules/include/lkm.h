@@ -36,6 +36,10 @@
 #include <linux/smp_lock.h>
 #endif
 #include <linux/module.h>
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,9,0)
+#define HAVE_COMPAT_IOCTL 1
+#define HAVE_UNLOCKED_IOCTL 1
+#endif
 
 /* Helper defines for multi-version kernel  support */
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
