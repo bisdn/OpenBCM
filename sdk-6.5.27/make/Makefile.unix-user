@@ -30,9 +30,9 @@ ifeq (1,$(USE_CLANG))
 # If in case the CC is not set then set it to the default gnu gcc.
 CC	?= $(LSRUN) $(CROSS_COMPILE)gcc
 else
-CC	= $(LSRUN) $(CROSS_COMPILE)gcc
+CC	?= $(LSRUN) $(CROSS_COMPILE)gcc
 endif
-CXX	= $(CROSS_COMPILE)g++
+CXX	?= $(CROSS_COMPILE)g++
 LD	= $(CROSS_COMPILE)ld
 ARFLAGS	= -rc
 STRIP	= $(CROSS_COMPILE)strip
