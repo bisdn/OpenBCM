@@ -6993,6 +6993,7 @@ bkn_set_link_ksettings(struct net_device *netdev,
 
 static const struct ethtool_ops bkn_ethtool_ops = {
     .get_drvinfo        = bkn_get_drvinfo,
+    .get_link           = ethtool_op_get_link,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0))
     .get_ts_info        = bkn_get_ts_info,
 #endif
