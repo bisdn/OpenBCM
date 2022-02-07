@@ -6984,10 +6984,7 @@ bkn_set_link_ksettings(struct net_device *netdev,
 {
     bkn_priv_t *priv = netdev_priv(netdev);
 
-    priv->link_settings.speed = cmd->base.speed;
-    priv->link_settings.duplex = cmd->base.speed ? DUPLEX_FULL : 0;
-
-    return 0;
+    return -EOPNOTSUPP;
 }
 #endif
 
@@ -7007,6 +7004,7 @@ static struct net_device *
 bkn_init_ndev(u8 *mac, char *name)
 {
     struct net_device *dev;
+    bkn_priv_t *priv;
 
     /* Create Ethernet device */
     dev = alloc_etherdev(sizeof(bkn_priv_t));
@@ -7050,6 +7048,9 @@ bkn_init_ndev(u8 *mac, char *name)
     dev->poll_controller = bkn_poll_controller;
 #endif
 #endif
+    priv = netdev_priv(dev);
+    priv->link_settings.speed = SPEED_UNKNOWN;
+    priv->link_settings.duplex = DUPLEX_UNKNOWN;
     dev->ethtool_ops = &bkn_ethtool_ops;
     if (name && *name) {
         strncpy(dev->name, name, IFNAMSIZ-1);
@@ -7088,8 +7089,14 @@ bkn_proc_link_show(struct seq_file *m, void *v)
             priv = (bkn_priv_t *)dlist;
             dev = priv->dev;
             if (dev) {
-                seq_printf(m, "  %-14s %s\n", dev->name,
+                seq_printf(m, "  %-14s %s", dev->name,
                            netif_carrier_ok(dev) ? "up" : "down");
+                if (priv->link_settings.speed != SPEED_UNKNOWN)
+                        seq_printf(m, ",%d", priv->link_settings.speed);
+                if (priv->link_settings.duplex != DUPLEX_UNKNOWN)
+                        seq_printf(m, ",%s", priv->link_settings.duplex == DUPLEX_FULL ? "fd" : "hd");
+                seq_printf(m, "\n");
+
             }
         }
         spin_unlock_irqrestore(&sinfo->lock, flags);
@@ -7107,13 +7114,18 @@ bkn_proc_link_open(struct inode * inode, struct file * file)
  * Device Link Control Proc Write Entry
  *
  *   Syntax:
- *   <netif>=up|down
+ *   <netif>=<option>[,<option>]*
  *
- *   Where <netif> is a virtual network interface name.
+ *   Where <netif> is a virtual network interface name, and <option> is one of
+ *
+ *   up|down     sets the detected link state
+ *   10|100|...  sets the detected link speed in Mbit/s
+ *   fd|hd       sets the detected link's duplex state (Full|Half)
  *
  *   Examples:
  *   eth4=up
  *   eth4=down
+ *   eth4=10000,fd
  */
 static ssize_t
 bkn_proc_link_write(struct file *file, const char *buf,
@@ -7163,12 +7175,24 @@ bkn_proc_link_write(struct file *file, const char *buf,
             }
         }
         if (dev) {
-            if (strcmp(ptr, "up") == 0) {
-                netif_carrier_on(dev);
-            } else if (strcmp(ptr, "down") == 0) {
-                netif_carrier_off(dev);
-            } else {
-                gprintk("Warning: unknown link state setting: '%s'\n", ptr);
+            char *tmp = ptr;
+            int speed;
+
+            while ((ptr = strsep(&tmp, ",")) != NULL) {
+                if (strcmp(ptr, "up") == 0) {
+                    netif_carrier_on(dev);
+                } else if (strcmp(ptr, "down") == 0) {
+                    netif_carrier_off(dev);
+                } else if (strcmp(ptr, "fd") == 0) {
+                    priv->link_settings.duplex = DUPLEX_FULL;
+                } else if (strcmp(ptr, "hd") == 0) {
+                    priv->link_settings.duplex = DUPLEX_HALF;
+                } else if (sscanf(ptr, "%d", &speed) == 1 &&
+                           ethtool_validate_speed(speed) == 1) {
+                    priv->link_settings.speed = speed;
+                } else {
+                    gprintk("Warning: unknown link state setting: '%s'\n", ptr);
+                }
             }
             spin_unlock_irqrestore(&sinfo->lock, flags);
             return count;
