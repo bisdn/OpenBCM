@@ -6738,9 +6738,49 @@ bkn_get_ts_info(struct net_device *dev, struct ethtool_ts_info *info)
 }
 #endif
 
+int bkn_get_link_ksettings(struct net_device *dev,
+                           struct ethtool_link_ksettings *cmd)
+{
+    bkn_switch_info_t *sinfo;
+    unsigned long flags;
+    bkn_priv_t *priv;
+
+    DBG_NDEV(("bkn_get_link_ksettings: module_initialized:%d\n", module_initialized));
+
+    if (!module_initialized) {
+        return -EINVAL;
+    }
+
+    if (!dev)
+        return -EINVAL;
+
+    priv = netdev_priv(dev);
+
+    if (!priv)
+        return -EINVAL;
+
+    sinfo = priv->sinfo;
+
+    if (!sinfo)
+        return -EINVAL;
+
+    spin_lock_irqsave(&sinfo->lock, flags);
+    if (netif_carrier_ok(dev)) {
+      cmd->base.speed = priv->speed;
+      cmd->base.duplex = priv->duplex;
+    } else {
+      cmd->base.speed = SPEED_UNKNOWN;
+      cmd->base.duplex = DUPLEX_UNKNOWN;
+    }
+    spin_unlock_irqrestore(&sinfo->lock, flags);
+
+    return 0;
+}
+
 static const struct ethtool_ops bkn_ethtool_ops = {
     .get_drvinfo        = bkn_get_drvinfo,
     .get_link           = ethtool_op_get_link,
+    .get_link_ksettings = bkn_get_link_ksettings,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0))
     .get_ts_info        = bkn_get_ts_info,
 #endif
