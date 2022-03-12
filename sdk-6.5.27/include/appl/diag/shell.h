@@ -33,7 +33,7 @@
  * Define:    LOG_DEFAULT_FILE
  * Purpose:    Default file name for "log" command
  */
-#define LOG_DEFAULT_FILE    "bcm.log"
+#define LOG_DEFAULT_FILE    "/var/log/bcm.log"
 
 /*
  * Define:    PUSH_CTRL_C_CNT
