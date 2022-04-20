@@ -6844,12 +6844,6 @@ bkn_init_ndev(u8 *mac, char *name)
 
     bkn_dev_net_set(dev, current->nsproxy->net_ns);
 
-    /* Register the kernel Ethernet device */
-    if (register_netdev(dev)) {
-        DBG_WARN(("Error registering Ethernet device.\n"));
-        free_netdev(dev);
-        return NULL;
-    }
     DBG_VERB(("Created Ethernet device %s.\n", dev->name));
 
     return dev;
@@ -8729,6 +8723,18 @@ bkn_knet_netif_create(kcom_msg_netif_create_t *kmsg, int len)
     DBG_VERB(("Assigned ID %d to Ethernet device %s\n",
               priv->id, dev->name));
 
+    /* Register the kernel Ethernet device */
+    if (register_netdev(dev)) {
+        DBG_WARN(("Error registering virtual Ethernet device.\n"));
+        spin_lock_irqsave(&sinfo->lock, flags);
+        list_del(&priv->list);
+        sinfo->ndevs[id] = NULL;
+        spin_unlock_irqrestore(&sinfo->lock, flags);
+        free_netdev(dev);
+        kmsg->hdr.status = KCOM_E_RESOURCE;
+        return sizeof(kcom_msg_hdr_t);
+    }
+
     kmsg->netif.id = priv->id;
     memcpy(kmsg->netif.macaddr, dev->dev_addr, 6);
     memcpy(kmsg->netif.name, dev->name, KCOM_NETIF_NAME_MAX - 1);
@@ -9556,6 +9562,13 @@ bkn_knet_dev_init(int d)
         priv->vlan = 1;
         priv->port = -1;
         priv->id = -1;
+    }
+
+    /* Register the kernel Ethernet device */
+    if (register_netdev(dev)) {
+        DBG_WARN(("Error registering base Ethernet device.\n"));
+        _cleanup();
+        return -ENOMEM;
     }
 
     if (use_napi) {
