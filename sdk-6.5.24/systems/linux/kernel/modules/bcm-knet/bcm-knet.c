@@ -6804,7 +6804,11 @@ bkn_init_ndev(u8 *mac, char *name)
 #endif
 
     /* Set the device MAC address */
-    memcpy(dev->dev_addr, mac, 6);
+    if ((mac[0] | mac[1] | mac[2] | mac[3] | mac[4] | mac[5]) == 0) {
+        eth_hw_addr_random(dev);
+    } else {
+        eth_hw_addr_set(dev, mac);
+    }
 
     /* Device information -- not available right now */
     dev->irq = 0;
@@ -8596,7 +8600,6 @@ bkn_knet_netif_create(kcom_msg_netif_create_t *kmsg, int len)
     bkn_priv_t *priv, *lpriv;
     unsigned long flags;
     int found, id;
-    uint8_t *ma;
 
     kmsg->hdr.type = KCOM_MSG_TYPE_RSP;
 
@@ -8623,12 +8626,7 @@ bkn_knet_netif_create(kcom_msg_netif_create_t *kmsg, int len)
         return sizeof(kcom_msg_hdr_t);
     }
 
-    ma = kmsg->netif.macaddr;
-    if ((ma[0] | ma[1] | ma[2] | ma[3] | ma[4] | ma[5]) == 0) {
-        bkn_dev_mac[5]++;
-        ma = bkn_dev_mac;
-    }
-    if ((dev = bkn_init_ndev(ma, kmsg->netif.name)) == NULL) {
+    if ((dev = bkn_init_ndev(kmsg->netif.macaddr, kmsg->netif.name)) == NULL) {
         kmsg->hdr.status = KCOM_E_RESOURCE;
         return sizeof(kcom_msg_hdr_t);
     }
