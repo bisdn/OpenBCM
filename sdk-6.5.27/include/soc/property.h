@@ -11446,6 +11446,9 @@
  */
 #define spn_BS_PLL_HOLDOVER_ENABLE  "bs_pll_holdover_enable"
 
+/* Enable AG7648 LEDPROC remap thread */
+#define spn_LEDPROC_AG7648 "ledproc_ag7648"
+
 #define BCM_SOC_PROP_NAMES_INITIALIZER \
 { \
   "10g_is_cx4", \
@@ -12740,6 +12743,7 @@
   "learning_fifo_dma_threshold", \
   "learning_fifo_dma_timeout", \
   "led_intensity", \
+  "ledproc_ag7648", \
   "line_client_calendar", \
   "line_port_calendar", \
   "line_pr_buffer_profile", \
