@@ -694,6 +694,47 @@ ledproc_sync_status(int unit, bcm_pbmp_t pbmp)
     }
 }
 
+static unsigned int package_count[36] = {0};
+static char led_task_run = 0;
+
+void led_status_task(void *d)
+{
+    int unit = 0,port = 0;
+    unsigned int ramdata = 0 , remap_byte = 0,data = 0,idx = 0;
+    bcm_port_info_t info;
+    unsigned int  inOctets = 0, outOctets = 0;
+    led_info_t *led_info_idx1 = (led_info_t *)d;
+
+    while(led_task_run) {
+      for(port = 37; port < 73; port ++) {
+	ramdata = 0x00;
+	if(IS_XE_PORT(unit,port)) {
+	  ramdata |= (0x01 << 7);
+	  if(bcm_port_info_get(unit, port, &info) == BCM_E_NONE) {
+	    if (info.linkstatus == BCM_PORT_LINK_STATUS_UP) ramdata |= 0x01;
+	    if(port > 36 && port < 49) {
+	      if(info.speed == 10000) ramdata |= (0x01 << 4);     //10G
+	    }
+	    if(port > 48 && port < 73) {
+	      if(info.speed == 40000) ramdata |= (0x01 << 4);     //40G
+	    }
+	    inOctets = 0, outOctets = 0;
+	    bcm_stat_get32 (unit, port, snmpIfInOctets,  &inOctets);
+	    bcm_stat_get32 (unit, port, snmpIfOutOctets, &outOctets);
+	    idx = port - 37;
+	    if((inOctets + outOctets) != package_count[idx]) {
+	      package_count[idx] = inOctets + outOctets;
+	      ramdata |= (0x01 << 1);
+	    }
+	  }
+	}
+	remap_byte = LS_LED_DATA_OFFSET_A0 + port - 37;
+	soc_pci_write(unit, led_info_idx1->dram_base + CMIC_LED_REG_SIZE * remap_byte,ramdata);
+      }  //for
+      sal_msleep(100);
+    }  //while
+}
+
 char ledproc_usage[] =
     "Parameters: [num] [status | start | stop | load <file.hex> |\n\t"
     "            [auto [on | off]] | prog <hexdata> | dump\n\t"
@@ -1351,6 +1392,16 @@ ledproc_cmd(int unit, args_t *a)
             (void)ledproc_sync_status(unit, PBMP_PORT_ALL(unit));
         }
 
+        if (soc_property_get(unit, spn_LEDPROC_AG7648, 0) == 1) {
+            if (ix == 1) {
+               if (led_task_run)
+                   return(CMD_OK);
+
+               led_task_run = 1;
+               sal_thread_create("REMAP_LED_STATUS", SAL_THREAD_STKSZ, 80, led_status_task, (void *)led_info_cur);
+            }
+        }
+
         return(CMD_OK);
     } else if (!sal_strcasecmp(c, "stop")) {
 
@@ -1375,6 +1426,15 @@ ledproc_cmd(int unit, args_t *a)
 
         led_ctrl &= ~LC_LED_ENABLE;
         soc_pci_write(unit, led_info_cur->ctrl, led_ctrl);
+
+        if (soc_property_get(unit, spn_LEDPROC_AG7648, 0) == 1) {
+            if (ix == 1) {
+                if (led_task_run) {
+                    led_task_run = 0;
+                    sal_sleep (2);
+                }
+            }
+        }
 
         return(CMD_OK);
     } else if (!sal_strcasecmp(c, "load")) {
