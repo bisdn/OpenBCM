@@ -36,6 +36,7 @@ char cmd_knet_ctrl_usage[] =
     "          [KeepRxTag=yes|no]   - Keep tag of packets which are sent to this netif\n"
     "          [IFName=<str>]       - Optional network device name\n"
     "          [CBData=<val>]       - User data for knet rx cb\n"
+    "          [MACaddress=<mac>]   - Optional network device MAC address\n"
     "  knetctrl netif destroy <id>\n"
     "        Destroy a virtual network interface.\n"
     "  knetctrl netif show\n"
@@ -287,6 +288,7 @@ cmd_knet_ctrl(int unit, args_t *args)
     int if_keeprxtag;
     int if_cb_user_data;
     int pf_cb_user_data;
+    sal_mac_addr_t if_mac_addr = { };
 
     if ((subcmd = ARG_GET(args)) == NULL) {
         cli_out("Requires string argument\n");
@@ -315,6 +317,7 @@ cmd_knet_ctrl(int unit, args_t *args)
             parse_table_add(&pt, "RCPU", PQ_DFL|PQ_BOOL, 0, &if_rcpu, 0);
             parse_table_add(&pt, "IFName", PQ_DFL|PQ_STRING, 0, &if_name, 0);
             parse_table_add(&pt, "CBData", PQ_DFL|PQ_INT, 0, &if_cb_user_data, 0);
+            parse_table_add(&pt, "MACaddress", PQ_DFL|PQ_MAC, 0, &if_mac_addr, NULL);
             if (parse_arg_eq(args, &pt) < 0) {
                 parse_arg_eq_done(&pt);
                 return CMD_USAGE;
@@ -346,6 +349,7 @@ cmd_knet_ctrl(int unit, args_t *args)
             if (if_keeprxtag) {
                 netif.flags |= BCM_KNET_NETIF_F_KEEP_RX_TAG;
             }
+            sal_memcpy(netif.mac_addr, if_mac_addr, sizeof(sal_mac_addr_t));
             netif.cb_user_data = if_cb_user_data;
             if ((rv = bcm_knet_netif_create(unit, &netif)) < 0) {
                 cli_out("Error creating network interface: %s\n",
