@@ -963,6 +963,9 @@ typedef struct bkn_priv_s {
 
     int speed;
     int duplex;
+
+    /* mark packets as forwarded in hardware */
+    int offload_fwd_mark;
 } bkn_priv_t;
 
 typedef struct bkn_filter_s {
@@ -3955,6 +3958,9 @@ bkn_do_api_rx(bkn_switch_info_t *sinfo, int chan, int budget)
                     }
                     DBG_DUNE(("skb protocol 0x%04x\n", skb->protocol));
 
+#ifdef CONFIG_NET_SWITCHDEV
+                    skb->offload_fwd_mark = priv->offload_fwd_mark;
+#endif
                     /*
                      * Disable configuration API while the spinlock is released.
                      */
@@ -4385,6 +4391,9 @@ bkn_do_skb_rx(bkn_switch_info_t *sinfo, int chan, int budget)
                         break;
                     }
 
+#ifdef CONFIG_NET_SWITCHDEV
+                    skb->offload_fwd_mark = priv->offload_fwd_mark;
+#endif
                     if (mirror_local) {
                         if (mskb) {
                             /* Process mirorr_to netif specific config. */
@@ -6879,6 +6888,7 @@ bkn_proc_link_show(struct seq_file *m, void *v)
                         seq_printf(m, ",%d", priv->speed);
                 if (priv->duplex != DUPLEX_UNKNOWN)
                         seq_printf(m, ",%s", priv->duplex == DUPLEX_FULL ? "fd" : "hd");
+                seq_printf(m, ",%s", priv->offload_fwd_mark ? "offload" : "no-offload");
                 seq_printf(m, "\n");
 
             }
@@ -6902,14 +6912,16 @@ bkn_proc_link_open(struct inode * inode, struct file * file)
  *
  *   Where <netif> is a virtual network interface name, and <option> is one of
  *
- *   up|down     sets the detected link state
- *   10|100|...  sets the detected link speed in Mbit/s
- *   fd|hd       sets the detected link's duplex state (Full|Half)
+ *   up|down      sets the detected link state
+ *   10|100|...   sets the detected link speed in Mbit/s
+ *   fd|hd        sets the detected link's duplex state (Full|Half)
+ *   (no-)offload (do not) mark received packets as forwarded in hardware
  *
  *   Examples:
  *   eth4=up
  *   eth4=down
  *   eth4=10000,fd
+ *   eth4=offload
  */
 static ssize_t
 bkn_proc_link_write(struct file *file, const char *buf,
@@ -6974,6 +6986,10 @@ bkn_proc_link_write(struct file *file, const char *buf,
                 } else if (sscanf(ptr, "%d", &speed) == 1 &&
                            ethtool_validate_speed(speed) == 1) {
                     priv->speed = speed;
+                } else if (strcmp(ptr, "offload") == 0) {
+                    priv->offload_fwd_mark = 1;
+                } else if (strcmp(ptr, "no-offload") == 0) {
+                    priv->offload_fwd_mark = 0;
                 } else {
                     gprintk("Warning: unknown link state setting: '%s'\n", ptr);
                 }
