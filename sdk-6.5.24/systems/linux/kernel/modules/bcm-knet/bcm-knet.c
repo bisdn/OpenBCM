@@ -302,6 +302,18 @@ static int napi_weight = 0;
 
 /* Compatibility */
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5,19,0))
+#define NETIF_NAPI_ADD(dev, napi, poll, weight) netif_napi_add((dev), (napi), (poll), (weight))
+#else
+#define NETIF_NAPI_ADD(dev, napi, poll, weight) netif_napi_add_weight((dev), (napi), (poll), (weight))
+#endif
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5,18,0))
+#define PCI_SET_DMA_MASK(pdev, mask) pci_set_dma_mask((pdev), (mask))
+#else
+#define PCI_SET_DMA_MASK(pdev, mask) dma_set_mask(&(pdev)->dev, (mask))
+#endif
+
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(4,7,0))
 #define NETDEV_UPDATE_TRANS_START_TIME(dev) dev->trans_start = jiffies
 #else
@@ -8432,7 +8444,7 @@ bkn_knet_hw_init(kcom_msg_hw_init_t *kmsg, int len)
     /* Ensure 32-bit PCI DMA is mapped properly on 64-bit platforms */
     dev_type = kernel_bde->get_dev_type(sinfo->dev_no);
     if (dev_type & BDE_PCI_DEV_TYPE && sinfo->cmic_type != 'x') {
-        if (pci_set_dma_mask(sinfo->pdev, 0xffffffff)) {
+        if (PCI_SET_DMA_MASK(sinfo->pdev, 0xffffffff)) {
             cfg_api_unlock(sinfo, &flags);
             gprintk("No suitable DMA available for SKBs\n");
             kmsg->hdr.status = KCOM_E_RESOURCE;
@@ -9571,7 +9583,7 @@ bkn_knet_dev_init(int d)
     }
 
     if (use_napi) {
-        netif_napi_add(dev, &sinfo->napi, bkn_poll, napi_weight);
+        NETIF_NAPI_ADD(dev, &sinfo->napi, bkn_poll, napi_weight);
     }
     return 0;
 }
