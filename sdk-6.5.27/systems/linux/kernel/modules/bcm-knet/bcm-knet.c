@@ -5719,22 +5719,6 @@ bkn_open(struct net_device *dev)
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,29))
 static int
-bkn_set_mac_address(struct net_device *dev, void *addr)
-{
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,18,12))
-    if (!is_valid_ether_addr((const u8*)(((struct sockaddr *)addr)->sa_data))) {
-#else
-    if (!is_valid_ether_addr(((struct sockaddr *)addr)->sa_data)) {
-#endif
-        return -EINVAL;
-    }
-    memcpy(dev->dev_addr, ((struct sockaddr *)addr)->sa_data, dev->addr_len);
-    return 0;
-}
-#endif
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,29))
-static int
 bkn_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
     bkn_priv_t *priv;
@@ -6871,7 +6855,7 @@ static const struct net_device_ops bkn_netdev_ops = {
     .ndo_get_stats       = bkn_get_stats,
     .ndo_validate_addr   = eth_validate_addr,
     .ndo_set_rx_mode     = bkn_set_multicast_list,
-    .ndo_set_mac_address = bkn_set_mac_address,
+    .ndo_set_mac_address = eth_mac_addr,
     .ndo_do_ioctl        = bkn_ioctl,
     .ndo_tx_timeout      = NULL,
     .ndo_change_mtu      = bkn_change_mtu,
@@ -7053,6 +7037,7 @@ bkn_init_ndev(u8 *mac, char *name)
     /* Device vectors */
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,29))
     dev->netdev_ops = &bkn_netdev_ops;
+    dev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
 #else
     dev->open = bkn_open;
     dev->hard_start_xmit = bkn_tx;
