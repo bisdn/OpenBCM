@@ -795,10 +795,7 @@ iproc_cmicd_probe(struct platform_device *pldev)
         int i;
         memset(iproc_cmicx_irqs, 0, IHOST_CMICX_MAX_INTRS*sizeof(uint32_t));
         for (i = 0; i < IHOST_CMICX_MAX_INTRS; i++) {
-            irqres = iproc_platform_get_resource(pldev, IORESOURCE_IRQ, i);
-            if (irqres) {
-                iproc_cmicx_irqs[i] = irqres->start;
-            }
+            iproc_cmicx_irqs[i] = platform_get_irq(pldev, i);
             if (debug >= 1) {
                 gprintk("iproc_cmicx_irqs[%d] = %d\n", i, iproc_cmicx_irqs[i]);
             }
@@ -807,8 +804,7 @@ iproc_cmicd_probe(struct platform_device *pldev)
     } else
 #endif
     {
-        irqres = iproc_platform_get_resource(pldev, IORESOURCE_IRQ, 0);
-        ctrl->iLine = irqres->start;
+        ctrl->iLine = platform_get_irq(pldev, 0);
     }
 
     ctrl->isr = NULL;
