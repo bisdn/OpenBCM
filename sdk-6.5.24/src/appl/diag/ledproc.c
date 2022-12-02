@@ -16,6 +16,7 @@
 #include <soc/types.h>
 #include <soc/drv.h>
 #include <appl/diag/system.h>
+#include <cjson/cJSON.h>
 
 #ifdef BCM_CMICM_SUPPORT
 #include <soc/cmicm.h>
@@ -303,6 +304,127 @@ ledproc_load_args(int unit, args_t *a, led_info_t *led_ptr)
     return(CMD_OK);
 }
 
+/*! Legacy port speed enumeration which is not recommended to use. */
+typedef enum soc_led_speed_e {
+    LED_SPD_NOLINK = 0, /* no link  */
+    LED_SPD_10M = 1,    /* 10 Mbps  */
+    LED_SPD_100M,       /* 100 Mbps */
+    LED_SPD_1000M,      /* 1 Gbps   */
+    LED_SPD_2500M,      /* 2.5 Gbps */
+    LED_SPD_10G,        /* 10 Gbps  */
+    LED_SPD_25G,        /* 25 Gbps  */
+    LED_SPD_40G,        /* 40 Gbps  */
+    LED_SPD_50G,        /* 50 Gbps  */
+    LED_SPD_100G,       /* 100 Gbps */
+    LED_SPD_200G,       /* 200 Gbps */
+    LED_SPD_400G,       /* 400 Gbps */
+    LED_SPD_INVALID     /* Should ALWAYS be last */
+} soc_led_speed_t;
+
+static int have_led_values = 0;
+static uint32 soc_led_values[LED_SPD_INVALID];
+
+enum soc_led_speed_e ledproc_speed_to_soc_led_speed(int speed)
+{
+    switch (speed) {
+    case 0:
+        return LED_SPD_NOLINK;
+    case 10:
+        return LED_SPD_10M;
+    case 100:
+        return LED_SPD_100M;
+    case 1000:
+        return LED_SPD_1000M;
+    case 2500:
+        return LED_SPD_2500M;
+    case 10000:
+        return LED_SPD_10G;
+    case 25000:
+        return LED_SPD_25G;
+    case 40000:
+        return LED_SPD_40G;
+    case 50000:
+        return LED_SPD_50G;
+    case 100000:
+        return LED_SPD_100G;
+    case 200000:
+        return LED_SPD_200G;
+    case 400000:
+        return LED_SPD_400G;
+    default:
+        return LED_SPD_INVALID;
+    }
+}
+
+/*
+ * Function: ledproc_get_leddata
+ * Purpose: This function returns the preset LED value for a certain
+ *          speed.
+ * Parameters: speed - new link speed in MBit/s, or 0 if no link
+ * Returns: LED value to program, or 0 if unsupported
+ */
+static uint32
+ledproc_get_leddata(int speed)
+{
+    return soc_led_values[ledproc_speed_to_soc_led_speed(speed)];
+}
+
+#ifndef NO_FILEIO
+STATIC cmd_result_t
+ledproc_load_leddata(int unit, char *cmd, char *file, FILE *f,
+                      led_info_t *led_ptr)
+{
+    char *buf;
+    cJSON *cj;
+    int items;
+    int size;
+
+    size = sal_fsize(f);
+    buf = sal_alloc(size, "json buffer");
+    if (buf == NULL)
+        return -1;
+
+    if (sal_fread(buf, size, 1, f) <= 0) {
+        sal_free(buf);
+        return -1;
+    }
+
+    cj = cJSON_Parse(buf);
+    if (cj == NULL) {
+        sal_free(buf);
+        return -1;
+    }
+
+    have_led_values = 0;
+    sal_memset(soc_led_values, 0, sizeof(soc_led_values));
+
+    items = cJSON_GetArraySize(cj);
+    for (int i = 0; i < items; i++) {
+        cJSON *entry = cJSON_GetArrayItem(cj, i);
+        cJSON *speed = cJSON_GetObjectItem(entry, "speed");
+        cJSON *value = cJSON_GetObjectItem(entry, "value");
+
+        if (speed == NULL || speed->type != cJSON_Number ||
+            value == NULL || value->type != cJSON_String) {
+            cli_out("invalid leddata at index %i\n", i);
+            continue;
+	}
+
+        uint32 speedval = speed->valueint;
+        uint32 ledval = strtol(value->valuestring, NULL, 16);
+
+	soc_led_values[ledproc_speed_to_soc_led_speed(speedval)] = ledval;
+    }
+
+    have_led_values = 1;
+
+    cJSON_Delete(cj);
+    sal_free(buf);
+
+    return 0;
+}
+#endif
+
 /*
  * Function: ledproc_linkscan_cb
  * Purpose: This call back function template is for LEDs status update
@@ -433,11 +555,15 @@ ledproc_linkscan_cb(int unit, soc_port_t port, bcm_port_info_t *info)
                 cli_out("Error rv %d: Unable to get speed for port %d\n", rv, port);
             }
 
-            /* If speed > 100G then setting LED as green. */
-            if (speed >= 100000) {
-                led_control_data |= (LED_GREEN << 1);
+            if (have_led_values == 1) {
+                led_control_data = ledproc_get_leddata(speed);
             } else {
-                led_control_data |= (LED_ORANGE << 1);
+                /* If speed > 100G then setting LED as green. */
+                if (speed >= 100000) {
+                    led_control_data |= (LED_GREEN << 1);
+                } else {
+                    led_control_data |= (LED_ORANGE << 1);
+                }
             }
         } else {
             led_control_data |= (LED_OFF << 1);
@@ -763,6 +889,14 @@ ledproc_linkscan_cb(int unit, soc_port_t port, bcm_port_info_t *info)
         }
 
         portdata &= ~0x80;
+    }
+
+    if (have_led_values == 1) {
+       if (info->linkstatus == BCM_PORT_LINK_STATUS_UP) {
+           portdata = ledproc_get_leddata(info->speed);
+       } else {
+           portdata = 0;
+       }
     }
 
     soc_pci_write(unit, led_info[led_ix].dram_base + CMIC_LED_REG_SIZE * byte,
@@ -1733,6 +1867,32 @@ ledproc_cmd(int unit, args_t *a)
             return(CMD_FAIL);
         }
 #endif  /* BCM_CMICX_SUPPORT */
+    } else if (!sal_strcasecmp(c, "leddata")) {
+#ifdef NO_FILEIO
+        cli_out("no filesystem\n");
+#else
+        if ((c = ARG_GET(a)) != NULL) {
+            if (!sal_strcasecmp(c, "clear")) {
+                have_led_values = 0;
+                sal_memset(soc_led_values, 0, sizeof(soc_led_values));
+            } else {
+                f = sal_fopen(c, "r");
+                if (!f) {
+                    cli_out("%s: Error: Unable to open file: %s\n",
+                            ARG_CMD(a), c);
+                    rv = CMD_FAIL;
+                } else {
+                    rv = ledproc_load_leddata(unit, ARG_CMD(a), c,
+                            (FILE *)f,led_info_cur);
+                    sal_fclose((FILE *)f); /* Cast for un-volatile */
+                    f = NULL;
+                }
+            }
+        } else {
+            cli_out("%s: Error: No file specified\n", ARG_CMD(a));
+            rv = CMD_USAGE;
+        }
+#endif
     } else {
         return(CMD_USAGE);
     }
