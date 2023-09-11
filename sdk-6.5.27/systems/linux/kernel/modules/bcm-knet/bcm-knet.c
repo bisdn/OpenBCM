@@ -6972,8 +6972,13 @@ bkn_get_link_ksettings(struct net_device *netdev,
 {
     bkn_priv_t *priv = netdev_priv(netdev);
 
-    cmd->base.speed = priv->link_settings.speed;
-    cmd->base.duplex = priv->link_settings.duplex;
+    if (netif_carrier_ok(netdev)) {
+        cmd->base.speed = priv->link_settings.speed;
+        cmd->base.duplex = priv->link_settings.duplex;
+    } else {
+        cmd->base.speed = SPEED_UNKNOWN;
+        cmd->base.duplex = DUPLEX_UNKNOWN;
+    }
 
     return 0;
 }
