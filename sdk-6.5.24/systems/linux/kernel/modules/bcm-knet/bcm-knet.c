@@ -68,6 +68,7 @@
 #include <linux/if_vlan.h>
 #include <linux/nsproxy.h>
 
+#include <net/dsfield.h>
 
 MODULE_AUTHOR("Broadcom Corporation");
 MODULE_DESCRIPTION("Network Device Driver for Broadcom BCM TxRx API");
@@ -2151,6 +2152,77 @@ bkn_pkt_is_rx_untagged(bkn_switch_info_t *sinfo, uint32_t *meta)
     }
 }
 
+static inline uint8_t
+bkn_pkt_new_dscp(bkn_switch_info_t *sinfo, uint32_t *meta)
+{
+    uint8_t dscp = 0;
+
+    /* extract DSCP field from DMA header */
+    switch (sinfo->dcb_type) {
+    case 28:
+        /*
+         * DPP: split over two words:
+         * - lower 4 bits in T28.9
+         * - upper 2 bits in T28.8
+         */
+        dscp = (meta[9] >> 28) & 0xfu;
+        dscp |= (meta[8] & 0x3u) << 4;
+        break;
+    case 23:
+    case 24:
+    case 26:
+    case 29:
+    case 31:
+    case 32:
+    case 34:
+    case 35:
+    case 37:
+        /* Triumph3 and newer */
+        dscp = (meta[11] & 0x1fu);
+        break;
+    case 36:
+        /* Trident 3 */
+        dscp = ((meta[9] >> 5) & 0x1fu);
+        break;
+    default:
+        /* currently unhandled */
+        break;
+    }
+
+    return dscp;
+}
+
+#define TOS_DSCP_MASK 0xfc
+
+static inline void
+bkn_pkt_update_dscp(bkn_switch_info_t *sinfo, uint32_t *meta, uint8_t *pkt)
+{
+    uint8_t new_dscp = bkn_pkt_new_dscp(sinfo, meta);
+    uint8_t *data = pkt + 2 * ETH_ALEN; /* point to ether type */
+    uint16_t eth_proto;
+
+    /* assume 0 means not a IP packet or no update */
+    if (new_dscp == 0)
+      return;
+
+    /* skip all VLAN headers */
+    eth_proto = *(uint16_t *)data;
+    while (eth_proto == htons(ETH_P_8021Q) ||
+           eth_proto == htons(ETH_P_8021AD)) {
+        data += VLAN_HLEN;
+        eth_proto = *(uint16_t *)data;
+    }
+
+    /* skip ether type */
+    data += ETH_TLEN;
+
+    /* update DSCP field for IPv4 and IPv6 */
+    if (eth_proto == htons(ETH_P_IP))
+        ipv4_change_dsfield((struct iphdr *)data, TOS_DSCP_MASK, new_dscp << 2);
+    else if (eth_proto == htons(ETH_P_IPV6))
+        ipv6_change_dsfield((struct ipv6hdr *)data, TOS_DSCP_MASK, new_dscp << 2);
+}
+
 static bkn_switch_info_t *
 bkn_sinfo_from_unit(int unit)
 {
@@ -3921,6 +3993,8 @@ bkn_do_api_rx(bkn_switch_info_t *sinfo, int chan, int budget)
                         }
                     }
 
+                    bkn_pkt_update_dscp(sinfo, meta, pkt);
+
                     skb_copy_to_linear_data(skb, pkt, pktlen);
                     if (device_is_sand(sinfo)) {
                         /* CRC has been stripped */
@@ -4373,6 +4447,8 @@ bkn_do_skb_rx(bkn_switch_info_t *sinfo, int chan, int budget)
                             }
                         }
                     }
+
+                    bkn_pkt_update_dscp(sinfo, meta, skb->data);
 
                     if (device_is_sand(sinfo)) {
                         rx_cb_meta = sand_scratch_data;
