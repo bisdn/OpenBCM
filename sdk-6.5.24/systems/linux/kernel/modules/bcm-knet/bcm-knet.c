@@ -6955,15 +6955,19 @@ bkn_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *drvinfo)
         return;
     }
 
-    strlcpy(drvinfo->driver, "bcm-knet", sizeof(drvinfo->driver));
+    strscpy(drvinfo->driver, "bcm-knet", sizeof(drvinfo->driver));
     snprintf(drvinfo->version, sizeof(drvinfo->version), "%d", KCOM_VERSION);
-    strlcpy(drvinfo->fw_version, "N/A", sizeof(drvinfo->fw_version));
-    strlcpy(drvinfo->bus_info, "N/A", sizeof(drvinfo->bus_info));
+    strscpy(drvinfo->fw_version, "N/A", sizeof(drvinfo->fw_version));
+    strscpy(drvinfo->bus_info, "N/A", sizeof(drvinfo->bus_info));
 }
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0))
 static int
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6,11,0))
 bkn_get_ts_info(struct net_device *dev, struct ethtool_ts_info *info)
+#else
+bkn_get_ts_info(struct net_device *dev, struct kernel_ethtool_ts_info *info)
+#endif
 {
     bkn_priv_t *priv;
     bkn_switch_info_t *sinfo;
