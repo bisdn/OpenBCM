@@ -65,6 +65,10 @@
 #define ALLOC_TYPE_API 1 /* use one allocation */
 #define ALLOC_TYPE_HIMEM 2 /* use high memory */
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6,8,0))
+#define MAX_ORDER (MAX_PAGE_ORDER + 1)
+#endif
+
 #if _SIMPLE_MEMORY_ALLOCATION_
 #include <linux/dma-mapping.h>
 #if defined(CONFIG_CMA) && defined(CONFIG_CMA_SIZE_MBYTES)
