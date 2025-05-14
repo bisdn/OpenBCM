@@ -6433,7 +6433,7 @@ bkn_tx(struct sk_buff *skb, struct net_device *dev)
         }
 
         priv->stats.tx_packets++;
-        priv->stats.tx_bytes += pktlen;
+        priv->stats.tx_bytes += (pktlen - 4 - hdrlen);
         sinfo->tx.pkts++;
     } else {
         DBG_VERB(("Tx busy: No DMA resources\n"));
