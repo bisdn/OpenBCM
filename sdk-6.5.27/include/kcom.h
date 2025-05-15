@@ -51,6 +51,8 @@
 
 #define KCOM_VERSION            13 /* Protocol version */
 
+#define KCOM_M_NETIF_STATS      128 /* Netif stats */
+
 /*
  * Message status codes
  */
@@ -350,6 +352,26 @@ typedef struct kcom_clock_info_s {
     int32 data[8];
 } kcom_clock_info_t;
 
+typedef struct kcom_netif_stats_s {
+    uint64 port_in_frames;
+    uint64 port_out_frames;
+    uint64 if_in_octets;
+    uint64 if_out_octets;
+    uint64 if_in_errors;
+    uint64 if_out_errors;
+    uint64 if_in_discards;
+    uint64 if_out_discards;
+    uint64 if_in_mcast_packets;
+    uint64 if_collisions;
+    uint64 dot3_in_range_length_errors;
+    uint64 dot3_frame_too_long_errors;
+    uint64 dot3_fcs_errors;
+    uint64 dot3_alignment_errors;
+    uint64 dot3_carrier_sense_errors;
+    uint64 dot3_sqe_test_errors;
+    uint64 dot3_late_collisions;
+} kcom_netif_stats_t;
+
 /*
  * Send literal string to/from kernel module.
  * Mainly for debugging purposes.
@@ -571,6 +593,15 @@ typedef struct kcom_msg_hw_info_s {
 } kcom_msg_hw_info_t;
 
 /*
+ * Netif stats
+ */
+
+typedef struct kcom_msg_netif_stats_s {
+    kcom_msg_hdr_t hdr;
+    kcom_netif_stats_t netif_stats;
+} kcom_msg_netif_stats_t;
+
+/*
  * All messages (e.g. for generic receive)
  */
 typedef union kcom_msg_s {
@@ -597,6 +628,7 @@ typedef union kcom_msg_s {
     kcom_msg_wb_cleanup_t wb_cleanup;
     kcom_msg_clock_cmd_t clock_cmd;
     kcom_msg_pcie_link_status_t pcie_link_status;
+    kcom_msg_netif_stats_t netif_stats;
 } kcom_msg_t;
 
 /*

@@ -14,8 +14,10 @@
 #include <soc/higig.h>
 #include <soc/dcbformats.h>
 #include <soc/knet.h>
+#include <soc/counter.h>
 
 #include <bcm/knet.h>
+#include <bcm/stat.h>
 #include <bcm_int/esw_dispatch.h>
 #include <bcm_int/common/rx.h>
 #include <bcm_int/esw/cosq.h>
@@ -262,6 +264,157 @@ _trav_filter_clean(int unit, bcm_knet_filter_t *filter, void *user_data)
     return bcm_esw_knet_filter_destroy(unit, filter->id);
 }
 
+STATIC int
+_update_netif_stats(int unit, bcm_knet_netif_t *netif, void *user_data)
+{
+    kcom_msg_netif_stats_t stats_msg;
+    /* keep in sync with kcom_netif_stats_t */
+    bcm_stat_val_t stat_arr[] = {
+        snmpDot1dTpPortInFrames,
+        snmpDot1dTpPortOutFrames,
+        snmpIfInOctets,
+        snmpIfOutOctets,
+        snmpIfInErrors,
+        snmpIfOutErrors,
+        snmpIfInDiscards,
+        snmpIfOutDiscards,
+        snmpIfInMulticastPkts,
+        snmpEtherStatsCollisions,
+        snmpDot3StatsInRangeLengthError,
+        snmpDot3StatsFrameTooLongs,
+        snmpDot3StatsFCSErrors,
+        snmpDot3StatsAlignmentErrors,
+        snmpDot3StatsCarrierSenseErrors,
+        snmpDot3StatsSQETTestErrors,
+        snmpDot3StatsLateCollisions,
+    };
+    int rv;
+
+    if (netif->type != BCM_KNET_NETIF_T_TX_LOCAL_PORT)
+        return 0;
+
+    sal_memset(&stats_msg, 0, sizeof(stats_msg));
+    stats_msg.hdr.opcode = KCOM_M_NETIF_STATS;
+    stats_msg.hdr.unit = unit;
+    stats_msg.hdr.id = netif->id;
+
+    rv = bcm_esw_stat_multi_get(unit, netif->port, COUNTOF(stat_arr), stat_arr,
+                                (uint64 *)&stats_msg.netif_stats);
+    if (BCM_SUCCESS(rv)) {
+        rv = soc_knet_cmd_req((kcom_msg_t *)&stats_msg, sizeof(stats_msg),
+                              sizeof(stats_msg));
+    }
+
+    return rv;
+}
+
+STATIC void
+_update_all_netif_stats(int unit)
+{
+    bcm_esw_knet_netif_traverse(unit, _update_netif_stats, NULL);
+}
+
+typedef struct _knet_stats_ctrl_s
+{
+    char taskname[16];
+    sal_sem_t sema;
+    int running;
+    int stop;
+    int unit;
+} _knet_stats_ctrl_t;
+
+STATIC _knet_stats_ctrl_t _bcm_esw_knet_stats_ctrl[BCM_MAX_NUM_UNITS];
+
+#define KNET_STATS_CTRL(_u) (&_bcm_esw_knet_stats_ctrl[_u])
+
+STATIC void
+_bcm_esw_netif_stats_thread(void *context)
+{
+    _knet_stats_ctrl_t *statc = (_knet_stats_ctrl_t *)context;
+
+    statc->running = 1;
+    while (!statc->stop) {
+        _update_all_netif_stats(statc->unit);
+        sal_sem_take(statc->sema, sal_sem_FOREVER);
+    }
+    statc->running = 0;
+}
+
+STATIC int
+_bcm_esw_knet_stats_start(int unit)
+{
+    _knet_stats_ctrl_t *statc = KNET_STATS_CTRL(unit);
+
+    statc->unit = unit;
+    if (!statc->running) {
+        if (statc->sema == NULL) {
+            statc->sema = sal_sem_create("knet_stats_SLEEP", sal_sem_BINARY, 0);
+            if (statc->sema == NULL) {
+                return BCM_E_MEMORY;
+            }
+        }
+
+        sal_snprintf(statc->taskname, sizeof(statc->taskname),
+                     "bcmKnetStats.%d", unit);
+        statc->stop = 0;
+        if (sal_thread_create(statc->taskname, SAL_THREAD_STKSZ, 50,
+                              _bcm_esw_netif_stats_thread, statc) == SAL_THREAD_ERROR) {
+            LOG_VERBOSE(BSL_LS_SOC_COMMON,
+                        (BSL_META_U(unit,
+                         "%s: Failed to start thread\n"), statc->taskname));
+            return BCM_E_MEMORY;
+        }
+    }
+
+    return BCM_E_NONE;
+}
+
+STATIC int
+_bcm_esw_knet_stats_stop(int unit)
+{
+    int cnt;
+    _knet_stats_ctrl_t *statc = KNET_STATS_CTRL(unit);
+
+    if (statc->sema == NULL) {
+        return BCM_E_NONE;
+    }
+
+    statc->stop = 1;
+    sal_sem_give(statc->sema);
+    cnt = 10;
+    while (statc->running && cnt--) {
+        sal_usleep(100000);
+    }
+
+    if (statc->running) {
+        LOG_VERBOSE(BSL_LS_SOC_COMMON,
+                    (BSL_META_U(unit,
+                     "%s: Thread did not stop\n"), statc->taskname));
+        return BCM_E_TIMEOUT;
+    }
+
+    sal_sem_destroy(statc->sema);
+    statc->sema = NULL;
+
+    return BCM_E_NONE;
+}
+
+STATIC void
+_bcm_esw_knet_sync_stats(int unit)
+{
+    _knet_stats_ctrl_t *statc = KNET_STATS_CTRL(unit);
+
+    if (statc->sema == NULL) {
+        return;
+    }
+
+    if (statc->running == 0) {
+        return;
+    }
+
+    sal_sem_give(statc->sema);
+}
+
 #endif /* INCLUDE_KNET */
 
 /*
@@ -289,6 +442,18 @@ bcm_esw_knet_init(int unit)
     if (BCM_SUCCESS(rv)) {
         /* Map all queues to primary Rx DMA channel */
         rv = _bcm_common_rx_queue_channel_set(unit, -1, 1);
+    }
+
+    if (BCM_SUCCESS(rv)) {
+        rv = _bcm_esw_knet_stats_start(unit);
+    }
+
+    if (BCM_SUCCESS(rv)) {
+        rv = soc_counter_extra_register(unit, _bcm_esw_knet_sync_stats);
+    }
+
+    if (!BCM_SUCCESS(rv)) {
+       _bcm_esw_knet_stats_stop(unit);
     }
 
     if (soc_property_get(unit, spn_KNET_FILTER_PERSIST, 0)) {
@@ -326,6 +491,10 @@ bcm_esw_knet_cleanup(int unit)
     return BCM_E_UNAVAIL;
 #else
     int rv;
+
+    soc_counter_extra_unregister(unit, _bcm_esw_knet_sync_stats);
+
+    _bcm_esw_knet_stats_stop(unit);
 
     if (soc_property_get(unit, spn_KNET_FILTER_PERSIST, 0)) {
         /* Leave filters in place */
