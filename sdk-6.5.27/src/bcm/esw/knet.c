@@ -415,6 +415,26 @@ _bcm_esw_knet_sync_stats(int unit)
     sal_sem_give(statc->sema);
 }
 
+STATIC void
+_esw_knet_linkscan_cb(int unit, soc_port_t port, bcm_port_info_t *info)
+{
+    kcom_msg_netif_state_t state_msg;
+
+    sal_memset(&state_msg, 0, sizeof(state_msg));
+    state_msg.hdr.opcode = KCOM_M_NETIF_STATE;
+    state_msg.hdr.unit = unit;
+    state_msg.netif_state.port = port;
+
+    if (info->linkstatus == BCM_PORT_LINK_STATUS_UP) {
+        state_msg.netif_state.link = 1;
+        state_msg.netif_state.speed = info->speed;
+        state_msg.netif_state.duplex = info->duplex;
+    }
+
+    soc_knet_cmd_req((kcom_msg_t *)&state_msg, sizeof(state_msg),
+                     sizeof(state_msg));
+}
+
 #endif /* INCLUDE_KNET */
 
 /*
@@ -456,6 +476,10 @@ bcm_esw_knet_init(int unit)
        _bcm_esw_knet_stats_stop(unit);
     }
 
+    if (BCM_SUCCESS(rv)) {
+       rv = bcm_esw_linkscan_register(unit, _esw_knet_linkscan_cb);
+    }
+
     if (soc_property_get(unit, spn_KNET_FILTER_PERSIST, 0)) {
         /* Do not create default filter */
         return rv;
@@ -491,6 +515,8 @@ bcm_esw_knet_cleanup(int unit)
     return BCM_E_UNAVAIL;
 #else
     int rv;
+
+    (void)bcm_esw_linkscan_unregister(unit, _esw_knet_linkscan_cb);
 
     soc_counter_extra_unregister(unit, _bcm_esw_knet_sync_stats);
 
@@ -529,6 +555,7 @@ bcm_esw_knet_netif_create(int unit, bcm_knet_netif_t *netif)
     int qnum;
     kcom_msg_netif_create_t netif_create;
     int max_port_cos_queues;
+    bcm_pbmp_t port_pbm;
 
     sal_memset(&netif_create, 0, sizeof(netif_create));
     netif_create.hdr.opcode = KCOM_M_NETIF_CREATE;
@@ -591,6 +618,12 @@ bcm_esw_knet_netif_create(int unit, bcm_knet_netif_t *netif)
         netif->id = netif_create.netif.id;
         sal_memcpy(netif->name, netif_create.netif.name,
                    sizeof(netif->name) - 1);
+
+        /* Update link state in KNET */
+        if (netif->flags & BCM_KNET_NETIF_F_TRACKED) {
+            BCM_PBMP_PORT_SET(port_pbm, netif->port);
+            bcm_esw_link_change(unit, port_pbm);
+        }
     }
     return rv;
 #endif

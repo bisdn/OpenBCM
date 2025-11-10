@@ -51,6 +51,7 @@
 #define KCOM_VERSION            13 /* Protocol version */
 
 #define KCOM_M_NETIF_STATS      128 /* Netif stats */
+#define KCOM_M_NETIF_STATE      129 /* Netif link state */
 
 /*
  * Message status codes
@@ -374,6 +375,13 @@ typedef struct kcom_netif_stats_s {
     uint64 dot3_late_collisions;
 } kcom_netif_stats_t;
 
+typedef struct kcom_netif_state_s {
+    uint8 port;
+    uint8 link;
+    uint8 duplex;
+    uint32 speed;
+} kcom_netif_state_t;
+
 /*
  * Send literal string to/from kernel module.
  * Mainly for debugging purposes.
@@ -591,6 +599,14 @@ typedef struct kcom_msg_netif_stats_s {
 } kcom_msg_netif_stats_t;
 
 /*
+ * Netif link state
+ */
+typedef struct kcom_msg_netif_state_s {
+    kcom_msg_hdr_t hdr;
+    kcom_netif_state_t netif_state;
+} kcom_msg_netif_state_t;
+
+/*
  * All messages (e.g. for generic receive)
  */
 typedef union kcom_msg_s {
@@ -617,6 +633,7 @@ typedef union kcom_msg_s {
     kcom_msg_wb_cleanup_t wb_cleanup;
     kcom_msg_clock_cmd_t clock_cmd;
     kcom_msg_netif_stats_t netif_stats;
+    kcom_msg_netif_state_t netif_state;
 } kcom_msg_t;
 
 /*
