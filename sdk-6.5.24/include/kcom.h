@@ -99,6 +99,9 @@ typedef struct kcom_msg_hdr_s {
  *  KCOM_NETIF_F_RCPU_ENCAP
  *  Use RCPU encapsulation for packets that enter and exit this
  *  interface.
+ *
+ *  KCOM_NETIF_F_TRACKED
+ *  BISDN extension: Port's configuration and state will be kept in sync with SDK.
  */
 #define KCOM_NETIF_T_VLAN       0
 #define KCOM_NETIF_T_PORT       1
@@ -108,6 +111,8 @@ typedef struct kcom_msg_hdr_s {
 #define KCOM_NETIF_F_RCPU_ENCAP (1U << 1)
 /* If a netif has this flag, the packet sent to the netif can't be stripped tag or added tag */
 #define KCOM_NETIF_F_KEEP_RX_TAG (1U << 2)
+
+#define KCOM_NETIF_F_TRACKED     (1U << 7)
 
 #define KCOM_NETIF_NAME_MAX     16
 

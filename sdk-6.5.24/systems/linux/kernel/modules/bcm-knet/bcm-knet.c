@@ -697,6 +697,8 @@ typedef struct bkn_switch_info_s {
         uint32_t pkts_d_no_link;    /* Rx drop - software link down */
         uint32_t pkts_d_no_api_buf; /* Rx drop - no API buffers */
     } rx[NUM_RX_CHAN];
+
+    void *netifs[256];
 } bkn_switch_info_t;
 
 #define INVALID_INSTANCE_ID         BDE_DEV_INST_ID_INVALID
@@ -8924,6 +8926,13 @@ bkn_knet_netif_create(kcom_msg_netif_create_t *kmsg, int len)
         return sizeof(kcom_msg_hdr_t);
     }
 
+    if (kmsg->netif.flags & KCOM_NETIF_F_TRACKED) {
+        if (kmsg->netif.type != KCOM_NETIF_T_PORT) {
+            kmsg->hdr.status = KCOM_E_PARAM;
+            return sizeof(kcom_msg_hdr_t);
+        }
+    }
+
     if ((dev = bkn_init_ndev(kmsg->netif.macaddr, kmsg->netif.name)) == NULL) {
         kmsg->hdr.status = KCOM_E_RESOURCE;
         return sizeof(kcom_msg_hdr_t);
@@ -8968,6 +8977,17 @@ bkn_knet_netif_create(kcom_msg_netif_create_t *kmsg, int len)
     lpriv = NULL;
 
     spin_lock_irqsave(&sinfo->lock, flags);
+
+    if (priv->flags & KCOM_NETIF_F_TRACKED) {
+        if (sinfo->netifs[priv->port] != NULL) {
+            spin_unlock_irqrestore(&sinfo->lock, flags);
+            DBG_WARN(("Tracked device for port %i already exists.\n", priv->port));
+            free_netdev(dev);
+            kmsg->hdr.status = KCOM_E_RESOURCE;
+            return sizeof(kcom_msg_hdr_t);
+        }
+        sinfo->netifs[priv->port] = priv;
+    }
 
     /*
      * We insert network interfaces sorted by ID.
@@ -9025,6 +9045,9 @@ bkn_knet_netif_create(kcom_msg_netif_create_t *kmsg, int len)
         spin_lock_irqsave(&sinfo->lock, flags);
         list_del(&priv->list);
         sinfo->ndevs[id] = NULL;
+        if (priv->flags & KCOM_NETIF_F_TRACKED) {
+            sinfo->netifs[priv->port] = NULL;
+        }
         spin_unlock_irqrestore(&sinfo->lock, flags);
         free_netdev(dev);
         kmsg->hdr.status = KCOM_E_RESOURCE;
@@ -9085,6 +9108,10 @@ bkn_knet_netif_destroy(kcom_msg_netif_destroy_t *kmsg, int len)
 
     if (priv->id < sinfo->ndev_max) {
         sinfo->ndevs[priv->id] = NULL;
+    }
+
+    if (priv->flags & KCOM_NETIF_F_TRACKED) {
+        sinfo->netifs[priv->port] = NULL;
     }
 
     cfg_api_unlock(sinfo, &flags);
