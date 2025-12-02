@@ -37,6 +37,7 @@ char cmd_knet_ctrl_usage[] =
     "          [IFName=<str>]       - Optional network device name\n"
     "          [CBData=<val>]       - User data for knet rx cb\n"
     "          [MACaddress=<mac>]   - Optional network device MAC address\n"
+    "          [Tracked=yes|no]     - Keep port config and state in sync with this netif\n"
     "  knetctrl netif destroy <id>\n"
     "        Destroy a virtual network interface.\n"
     "  knetctrl netif show\n"
@@ -116,6 +117,9 @@ knet_show_netif(int unit, bcm_knet_netif_t *netif)
     }
     if (netif->flags & BCM_KNET_NETIF_F_KEEP_RX_TAG) {
         cli_out(" keeprxtag");
+    }
+    if (netif->flags & BCM_KNET_NETIF_F_TRACKED) {
+        cli_out(" tracked");
     }
     cli_out("\n");
 }
@@ -288,6 +292,7 @@ cmd_knet_ctrl(int unit, args_t *args)
     int if_keeprxtag;
     int if_cb_user_data;
     int pf_cb_user_data;
+    int if_tracked;
     sal_mac_addr_t if_mac_addr = { };
 
     if ((subcmd = ARG_GET(args)) == NULL) {
@@ -308,12 +313,14 @@ cmd_knet_ctrl(int unit, args_t *args)
             if_name = NULL;
             if_keeprxtag = 0;
             if_cb_user_data = 0;
+            if_tracked = 0;
             parse_table_init(unit, &pt);
             parse_table_add(&pt, "Type", PQ_DFL|PQ_MULTI, 0, &if_type, knet_netif_type);
             parse_table_add(&pt, "Vlan", PQ_DFL|PQ_INT, 0, &if_vlan, 0);
             parse_table_add(&pt, "Port", PQ_DFL|PQ_PORT, 0, &if_port, 0);
             parse_table_add(&pt, "AddTag", PQ_DFL|PQ_BOOL, 0, &if_addtag, 0);
             parse_table_add(&pt, "KeepRxTag", PQ_DFL|PQ_BOOL, 0, &if_keeprxtag, 0);
+            parse_table_add(&pt, "Tracked", PQ_DFL|PQ_BOOL, 0, &if_tracked, 0);
             parse_table_add(&pt, "RCPU", PQ_DFL|PQ_BOOL, 0, &if_rcpu, 0);
             parse_table_add(&pt, "IFName", PQ_DFL|PQ_STRING, 0, &if_name, 0);
             parse_table_add(&pt, "CBData", PQ_DFL|PQ_INT, 0, &if_cb_user_data, 0);
@@ -348,6 +355,14 @@ cmd_knet_ctrl(int unit, args_t *args)
             }
             if (if_keeprxtag) {
                 netif.flags |= BCM_KNET_NETIF_F_KEEP_RX_TAG;
+            }
+
+            if (if_tracked) {
+                if (if_port < 0 || if_rcpu > 0) {
+                  cli_out("Tracked can only be used with local ports\n");
+                  return CMD_USAGE;
+                }
+                netif.flags | BCM_KNET_NETIF_F_TRACKED;
             }
             sal_memcpy(netif.mac_addr, if_mac_addr, sizeof(sal_mac_addr_t));
             netif.cb_user_data = if_cb_user_data;

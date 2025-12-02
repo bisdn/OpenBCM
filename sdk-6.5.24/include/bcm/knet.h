@@ -35,6 +35,11 @@
                                                       packets which will be sent
                                                       to this interface. */
 
+/* BISDN extentions */
+#define BCM_KNET_NETIF_F_TRACKED        0x80000000 /* Keep port config and state
+                                                      in sync with this
+                                                      this interface. */
+
 #define BCM_KNET_NETIF_NAME_MAX 16         
 
 /* Kernel network interface structure. */

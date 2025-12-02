@@ -560,6 +560,9 @@ bcm_esw_knet_netif_create(int unit, bcm_knet_netif_t *netif)
     if (netif->flags & BCM_KNET_NETIF_F_KEEP_RX_TAG) {
         netif_create.netif.flags |= KCOM_NETIF_F_KEEP_RX_TAG;
     }
+    if (netif->flags & BCM_KNET_NETIF_F_TRACKED) {
+        netif_create.netif.flags |= KCOM_NETIF_F_TRACKED;
+    }
     netif_create.netif.cb_user_data = netif->cb_user_data;
     netif_create.netif.vlan = netif->vlan;
     netif_create.netif.port = netif->port;
@@ -681,6 +684,9 @@ bcm_esw_knet_netif_get(int unit, int netif_id, bcm_knet_netif_t *netif)
         }
         if (netif_get.netif.flags & KCOM_NETIF_F_KEEP_RX_TAG) {
             netif->flags |= BCM_KNET_NETIF_F_KEEP_RX_TAG;
+        }
+        if (netif_get.netif.flags & KCOM_NETIF_F_TRACKED) {
+            netif->flags |= BCM_KNET_NETIF_F_TRACKED;
         }
 
         netif->id = netif_get.netif.id;
