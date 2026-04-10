@@ -1707,6 +1707,21 @@ exit:
     SHR_FUNC_EXIT;
 }
 
+int
+bcm_dnx_knet_netif_update_sfp_info(
+    int unit,
+    bcm_port_t port,
+    uint8 flags)
+{
+    SHR_FUNC_INIT_VARS(unit);
+    DNX_ERR_RECOVERY_NO_SUPPORT_BEGIN(unit);
+
+    SHR_ERR_EXIT(BCM_E_UNAVAIL, "bcm_knet_netif_update_sfp_info is unavailable\n");
+exit:
+    DNX_ERR_RECOVERY_NO_SUPPORT_END(unit);
+    SHR_FUNC_EXIT;
+}
+
 /**
  * \brief Traverse kernel network interface objects.
  *

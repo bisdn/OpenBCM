@@ -185221,6 +185221,52 @@ bcm_flowtracker_aggregate_class_create(
 	return r_rv;
 }
 
+/* Externs for the required functions */
+#define BCM_DLIST_ENTRY(_dtype) \
+extern int bcm_##_dtype##_knet_netif_update_sfp_info( \
+    int unit, bcm_port_t port, uint8 flags, uint16 eeprom_offset, uint16 eeprom_len, uint8 *eeprom);
+#include <bcm_int/bcm_dlist.h>
+
+/* Dispatch table for this function, which uses the externs above */
+#define BCM_DLIST_ENTRY(_dtype)\
+bcm_##_dtype##_knet_netif_update_sfp_info,
+static int (*_knet_netif_update_sfp_info_dispatch[])(
+    int unit,
+    bcm_port_t port,
+    uint8 flags) =
+{
+#include <bcm_int/bcm_dlist.h>
+0
+};
+
+
+int
+bcm_knet_netif_update_sfp_info(
+    int unit,
+    bcm_port_t port,
+    uint8 flags)
+{
+	int	r_rv;
+	bcm_dtype_t	dtype;
+
+	BCM_PRE_API_LOGIC_HOOK(unit);
+
+	if (!BCM_UNIT_CHECK(unit)) {
+		r_rv = BCM_E_UNIT;
+	} else {
+		dtype = BCM_DTYPE(unit);
+		/* coverity[double_lock:FALSE] */
+		BCM_CALL_DISPATCH(r_rv,_knet_netif_update_sfp_info_dispatch[dtype],
+                                  (unit, port, flags), 3,
+                                  (&unit, &port, &flags));
+		BCM_STATE_SYNC(unit);
+	}
+	BCM_UNIT_IDLE(unit);
+	BCM_POST_API_LOGIC_HOOK(unit);
+	BCM_API(BSL_LS_BCMAPI_KNET, "bcm_knet_netif_update_sfp_info", 3, 3, unit, port, 0, r_rv);
+	return r_rv;
+}
+
 /* BCM Devlist macros for generating the dispatch table for this function */
 
 /* Externs for the required functions */

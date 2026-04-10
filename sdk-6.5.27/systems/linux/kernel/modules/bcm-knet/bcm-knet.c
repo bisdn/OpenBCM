@@ -63,6 +63,8 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
+#include <linux/nvmem-consumer.h>
+#include <linux/sfp.h>
 #include <linux/random.h>
 #include <linux/seq_file.h>
 #include <linux/if_vlan.h>
@@ -808,6 +810,13 @@ typedef struct bkn_priv_s {
 #endif
     /* mark packets as forwarded in hardware */
     int offload_fwd_mark;
+
+    /* connected SFP tranceiver information */
+    uint8_t sfp_flags;
+    uint32_t sfp_module_type;
+    uint32_t sfp_eeprom_len;
+    struct nvmem_device *nvmem_eeprom;
+    struct work_struct module_inserted;
 } bkn_priv_t;
 
 typedef struct bkn_filter_s {
@@ -6986,6 +6995,205 @@ bkn_set_link_ksettings(struct net_device *netdev,
 
     return -EOPNOTSUPP;
 }
+
+static int bkn_get_module_info(struct net_device *dev,
+                               struct ethtool_modinfo *modinfo)
+{
+    bkn_switch_info_t *sinfo;
+    unsigned long flags;
+    bkn_priv_t *priv;
+    int ret = 0;
+
+    priv = netdev_priv(dev);
+
+    if (!priv)
+        return -EINVAL;
+
+    if (!(priv->flags & KCOM_NETIF_F_SFP))
+        return -EOPNOTSUPP;
+
+    sinfo = priv->sinfo;
+
+    if (!sinfo)
+        return -EINVAL;
+
+    spin_lock_irqsave(&sinfo->lock, flags);
+    if (!(priv->sfp_flags & KCOM_SFP_MODDEF0)) {
+        ret = -ENODEV;
+    } else if (priv->sfp_eeprom_len == 0) {
+        return -EIO;
+    } else {
+        modinfo->type = priv->sfp_module_type;
+        modinfo->eeprom_len = priv->sfp_eeprom_len;
+    }
+
+    spin_unlock_irqrestore(&sinfo->lock, flags);
+
+    return 0;
+}
+
+static int bkn_get_module_eeprom(struct net_device *dev,
+                                 struct ethtool_eeprom *ee, u8 *data)
+{
+    bkn_priv_t *priv;
+    int ret = 0;
+
+    priv = netdev_priv(dev);
+
+    if (!priv)
+        return -EINVAL;
+
+    if (!(priv->flags & KCOM_NETIF_F_SFP))
+        return -EOPNOTSUPP;
+
+    if (!ee->len)
+        return -EINVAL;
+
+    if (!(priv->sfp_flags & KCOM_SFP_MODDEF0))
+        return -ENODEV;
+
+    if ((ee->offset + ee->len) > priv->sfp_eeprom_len)
+        return -EINVAL;
+
+    ret = nvmem_device_read(priv->nvmem_eeprom, ee->offset, ee->len, data);
+    if (ret > 0) {
+        if (ret != ee->len)
+            ret = -EAGAIN;
+        else
+            ret = 0;
+    }
+
+    return ret;
+}
+
+static int bkn_get_module_eeprom_by_page(struct net_device *dev,
+                                         const struct ethtool_module_eeprom *page,
+                                         struct netlink_ext_ack *extack)
+{
+    bkn_switch_info_t *sinfo;
+    unsigned long flags;
+    bkn_priv_t *priv;
+    uint32_t sfp_module_type;
+    uint32_t sfp_eeprom_len;
+    int offset, rem;
+    u8 *dst;
+    int ret = 0;
+
+    priv = netdev_priv(dev);
+
+    if (!priv)
+        return -EINVAL;
+
+    if (!(priv->flags & KCOM_NETIF_F_SFP))
+        return -EOPNOTSUPP;
+
+    if (page->bank)
+        return -EOPNOTSUPP;
+
+    if (page->page > 3)
+        return -EOPNOTSUPP;
+
+    if (page->i2c_address != 0x50 && page->i2c_address != 0x51)
+        return -EOPNOTSUPP;
+
+    if (!page->length)
+        return -EINVAL;
+
+    if ((page->offset + page->length) > ETH_MODULE_SFF_8079_LEN)
+        ret = -EINVAL;
+
+    sinfo = priv->sinfo;
+    if (!sinfo)
+        return -EINVAL;
+
+    if (!priv->nvmem_eeprom)
+        return -EOPNOTSUPP;
+
+    spin_lock_irqsave(&sinfo->lock, flags);
+    if (!(priv->sfp_flags & KCOM_SFP_MODDEF0)) {
+        ret = -ENODEV;
+    } else {
+        sfp_module_type = priv->sfp_module_type;
+        sfp_eeprom_len = priv->sfp_eeprom_len;
+    }
+    spin_unlock_irqrestore(&sinfo->lock, flags);
+
+    if (ret)
+        return ret;
+
+    switch (sfp_module_type) {
+    case ETH_MODULE_SFF_8079:
+        if (page->i2c_address == 0x51)
+                return -EIO;
+        fallthrough;
+    case ETH_MODULE_SFF_8472:
+        /* Mirrored SFP layout is:
+         * [  0 - 255]: 0x50
+         * [256 - 511]: 0x51
+         */
+        if (page->i2c_address == 0x51)
+            offset = ETH_MODULE_SFF_8079_LEN;
+        else
+            offset = 0;
+
+        ret = nvmem_device_read(priv->nvmem_eeprom, offset + page->offset,
+                                page->length, page->data);
+        break;
+    case ETH_MODULE_SFF_8436:
+    case ETH_MODULE_SFF_8636:
+        /* Mirrored QSFP layout is:
+         * [  0 - 127]: lower page
+         * [128 - 255]: upper page 00
+         * [256 - 383]: upper page 01
+         * [384 - 511]: upper page 02
+         * [512 - 639]: upper page 03
+         */
+
+        if (page->page > 0 &&
+            (sfp_eeprom_len < ETH_MODULE_SFF_8636_MAX_LEN)) {
+            return -EIO;
+	}
+
+        offset = page->offset;
+        rem = page->length;
+        dst = page->data;
+
+        /* copy lower page if part of request */
+        if (offset < ETH_MODULE_EEPROM_PAGE_LEN) {
+            int len = min(rem, ETH_MODULE_EEPROM_PAGE_LEN - offset);
+            ret = nvmem_device_read(priv->nvmem_eeprom, offset, len, dst);
+            if (ret < 0)
+                   return ret;
+            if (ret != len)
+                    return -EAGAIN;
+            ret = 0;
+
+            rem -= len;
+            dst += len;
+
+            offset = ETH_MODULE_EEPROM_PAGE_LEN;
+        }
+
+        /* copy upper page if part of the request */
+        if (rem > 0) {
+            ret = nvmem_device_read(priv->nvmem_eeprom, offset, rem, dst);
+            if (ret < 0)
+                return ret;
+            if (ret != rem)
+                return -EAGAIN;
+            ret = 0;
+        }
+        break;
+    default:
+        return -EIO;
+        break;
+    }
+
+    if (ret)
+        return ret;
+
+    return page->length;
+}
 #endif
 
 static const struct ethtool_ops bkn_ethtool_ops = {
@@ -6995,8 +7203,163 @@ static const struct ethtool_ops bkn_ethtool_ops = {
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,6,0))
     .get_link_ksettings = bkn_get_link_ksettings,
     .set_link_ksettings = bkn_set_link_ksettings,
+    .get_module_info    = bkn_get_module_info,
+    .get_module_eeprom  = bkn_get_module_eeprom,
+    .get_module_eeprom_by_page = bkn_get_module_eeprom_by_page,
 #endif
 };
+
+static int
+bkn_knet_update_sfp_module_info(bkn_priv_t *priv)
+{
+    struct net_device *dev = priv->dev;
+    bkn_switch_info_t *sinfo = priv->sinfo;
+    uint32_t sfp_module_type, sfp_eeprom_len;
+    unsigned long flags;
+    int ret, port;
+    uint8_t data[4];
+    struct sfp_eeprom_id id;
+
+    ret = nvmem_device_read(priv->nvmem_eeprom,  0, 4, &data);
+    if (ret < 0) {
+        netdev_warn(dev, "failed to read EEPROM: %pe\n", ERR_PTR(ret));
+        return -EAGAIN;
+    }
+
+    if (ret != sizeof(data)) {
+        netdev_warn(dev, "short read of EEPROM: %i\n", ret);
+        return -EAGAIN;
+    }
+
+    switch (data[0]) {
+    case SFF8024_ID_QSFP_8438:
+    case SFF8024_ID_QSFP_8436_8636:
+    case SFF8024_ID_QSFP28_8636:
+        if (data[0] == SFF8024_ID_QSFP_8438 ||
+            (data[0] == SFF8024_ID_QSFP_8436_8636 && data[1] < 0x3)) {
+            sfp_module_type = ETH_MODULE_SFF_8436;
+        } else {
+            sfp_module_type = ETH_MODULE_SFF_8636;
+        }
+
+        if (data[2] & BIT(2)) {
+            /* flat memory, only upper page 0 */
+            sfp_eeprom_len = ETH_MODULE_SFF_8636_LEN;
+        } else {
+            /* paged, at least upper page 3 implemented */
+            sfp_eeprom_len = ETH_MODULE_SFF_8636_MAX_LEN;
+        }
+
+        /* module info is in upper page 0 which mostly matches SFF-8472 */
+        ret = nvmem_device_read(priv->nvmem_eeprom, ETH_MODULE_EEPROM_PAGE_LEN,
+                                sizeof(id), &id);
+        if (ret < 0) {
+            netdev_warn(dev, "failed to read EEPROM upper page 0: %pe\n", ERR_PTR(ret));
+            return -EAGAIN;
+        }
+
+        if (ret != sizeof(id)) {
+           netdev_warn(dev, "short read of EEPROM upper page 0: %i\n", ret);
+           return -EAGAIN;
+        }
+        /* but vendor_rev length does not, so we need our own format */
+        netdev_info(dev, "module inserted\n");
+        netdev_info(dev, "module %.*s %.*s rev %.*s sn %.*s dc %.*s\n",
+                    (int)sizeof(id.base.vendor_name), id.base.vendor_name,
+                    (int)sizeof(id.base.vendor_pn), id.base.vendor_pn,
+                    2, id.base.vendor_rev,
+                    (int)sizeof(id.ext.vendor_sn), id.ext.vendor_sn,
+                    (int)sizeof(id.ext.datecode), id.ext.datecode);
+        break;
+    default:
+        ret = nvmem_device_read(priv->nvmem_eeprom, 0, sizeof(id), &id);
+        if (ret < 0) {
+            netdev_warn(dev, "failed to read EEPROM upper page 0: %pe\n", ERR_PTR(ret));
+            return -EAGAIN;
+        }
+
+        if (ret != sizeof(id)) {
+            netdev_warn(dev, "short read of EEPROM upper page 0: %i\n", ret);
+            return -EAGAIN;
+        }
+
+        if (id.ext.sff8472_compliance && (id.ext.diagmon & SFP_DIAGMON)) {
+            sfp_module_type = ETH_MODULE_SFF_8472;
+            sfp_eeprom_len = ETH_MODULE_SFF_8472_LEN;
+        } else {
+            sfp_module_type = ETH_MODULE_SFF_8079;
+            sfp_eeprom_len = ETH_MODULE_SFF_8079_LEN;
+        }
+
+        netdev_info(dev, "module inserted\n");
+        netdev_info(dev, "module %.*s %.*s rev %.*s sn %.*s dc %.*s\n",
+                    (int)sizeof(id.base.vendor_name), id.base.vendor_name,
+                    (int)sizeof(id.base.vendor_pn), id.base.vendor_pn,
+                    (int)sizeof(id.base.vendor_rev), id.base.vendor_rev,
+                    (int)sizeof(id.ext.vendor_sn), id.ext.vendor_sn,
+                    (int)sizeof(id.ext.datecode), id.ext.datecode);
+        break;
+    }
+
+    /* port is the physical connector, set this from the connector field. */
+    switch (id.base.connector) {
+    case SFF8024_CONNECTOR_SC:
+    case SFF8024_CONNECTOR_FIBERJACK:
+    case SFF8024_CONNECTOR_LC:
+    case SFF8024_CONNECTOR_MT_RJ:
+    case SFF8024_CONNECTOR_MU:
+    case SFF8024_CONNECTOR_OPTICAL_PIGTAIL:
+    case SFF8024_CONNECTOR_MPO_1X12:
+    case SFF8024_CONNECTOR_MPO_2X16:
+        port = PORT_FIBRE;
+        break;
+
+    case SFF8024_CONNECTOR_RJ45:
+        port = PORT_TP;
+        break;
+
+    case SFF8024_CONNECTOR_COPPER_PIGTAIL:
+        port = PORT_DA;
+        break;
+
+    case SFF8024_CONNECTOR_UNSPEC:
+        if (id.base.e1000_base_t) {
+                port = PORT_TP;
+                break;
+        }
+        fallthrough;
+    case SFF8024_CONNECTOR_SG: /* guess */
+    case SFF8024_CONNECTOR_HSSDC_II:
+    case SFF8024_CONNECTOR_NOSEPARATE:
+    case SFF8024_CONNECTOR_MXC_2X16:
+        port = PORT_OTHER;
+        break;
+    default:
+        netdev_warn(dev, "SFP: unknown connector id 0x%02x\n",
+                    id.base.connector);
+        port = PORT_OTHER;
+        break;
+    }
+    spin_lock_irqsave(&sinfo->lock, flags);
+
+    if (priv->sfp_flags & KCOM_SFP_MODDEF0) {
+        priv->sfp_port = port;
+        priv->sfp_module_type = sfp_module_type;
+        priv->sfp_eeprom_len = sfp_eeprom_len;
+    }
+
+    spin_unlock_irqrestore(&sinfo->lock, flags);
+
+    return 0;
+}
+
+static void
+bkn_module_inserted(struct work_struct *work)
+{
+    bkn_priv_t *priv = container_of(work, bkn_priv_t, module_inserted);
+
+    bkn_knet_update_sfp_module_info(priv);
+}
 
 static struct net_device *
 bkn_init_ndev(u8 *mac, char *name)
@@ -8824,6 +9187,20 @@ bkn_knet_netif_create(kcom_msg_netif_create_t *kmsg, int len)
     priv->flags = kmsg->netif.flags;
     priv->cb_user_data = kmsg->netif.cb_user_data;
 
+    if (priv->flags & KCOM_NETIF_F_TRACKED) {
+        if (priv->flags & KCOM_NETIF_F_SFP) {
+           priv->sfp_port = PORT_NONE;
+           priv->nvmem_eeprom = nvmem_device_get(&dev->dev, kmsg->netif.name);
+           INIT_WORK(&priv->module_inserted, bkn_module_inserted);
+           if (IS_ERR(priv->nvmem_eeprom)) {
+                   netdev_warn(dev, "no EEPROM handler found (err=%pe)\n", priv->nvmem_eeprom);
+                   priv->nvmem_eeprom = NULL;
+           }
+        } else {
+           priv->sfp_port = PORT_TP;
+        }
+    }
+
     /* Force RCPU encapsulation if rcpu_mode */
     if (rcpu_mode) {
         priv->flags |= KCOM_NETIF_F_RCPU_ENCAP;
@@ -9474,6 +9851,50 @@ bkn_knet_netif_state(kcom_msg_netif_state_t *kmsg, int len)
 }
 
 static int
+bkn_knet_netif_sfp_info(kcom_msg_netif_sfp_info_t *kmsg, int len)
+{
+    bkn_switch_info_t *sinfo;
+    struct net_device *dev;
+    unsigned long flags;
+    bkn_priv_t *priv;
+    uint8_t old_sfp_flags;
+
+    kmsg->hdr.type = KCOM_MSG_TYPE_RSP;
+
+    sinfo = bkn_sinfo_from_unit(kmsg->hdr.unit);
+    if (sinfo == NULL) {
+        kmsg->hdr.status = KCOM_E_PARAM;
+        return sizeof(kcom_msg_hdr_t);
+    }
+
+    spin_lock_irqsave(&sinfo->lock, flags);
+
+    priv = (bkn_priv_t *)sinfo->netifs[kmsg->netif_sfp_info.port];
+    if (priv && (priv->flags & KCOM_NETIF_F_SFP)) {
+        dev = priv->dev;
+        old_sfp_flags = priv->sfp_flags;
+        priv->sfp_flags = kmsg->netif_sfp_info.flags;
+
+        if (!(kmsg->netif_sfp_info.flags & KCOM_SFP_MODDEF0)) {
+            if (old_sfp_flags & KCOM_SFP_MODDEF0) {
+                netdev_info(dev, "module removed\n");
+                priv->sfp_port = PORT_NONE;
+                priv->sfp_module_type = 0;
+                priv->sfp_eeprom_len = 0;
+            }
+        } else {
+            if (!(old_sfp_flags & KCOM_SFP_MODDEF0)) {
+                schedule_work(&priv->module_inserted);
+            }
+        }
+    }
+
+    spin_unlock_irqrestore(&sinfo->lock, flags);
+
+    return sizeof(kcom_msg_hdr_t);
+}
+
+static int
 bkn_handle_cmd_req(kcom_msg_t *kmsg, int len)
 {
     /* Silently drop events and unrecognized message types */
@@ -9610,6 +10031,11 @@ bkn_handle_cmd_req(kcom_msg_t *kmsg, int len)
         DBG_CMD(("KCOM_M_NETIF_STATE\n"));
         /* Update netif link state */
         len = bkn_knet_netif_state(&kmsg->netif_state, len);
+        break;
+     case KCOM_M_NETIF_SFP_INFO:
+        DBG_CMD(("KCOM_M_NETIF_SFP_INFO\n"));
+        /* Update netif sfp info */
+        len = bkn_knet_netif_sfp_info(&kmsg->netif_sfp_info, len);
         break;
     default:
         DBG_WARN(("Unsupported command (type=%d, opcode=%d)\n",
