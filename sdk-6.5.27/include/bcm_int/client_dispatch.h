@@ -4583,6 +4583,7 @@ extern int bcm_client_ipsec_tunnel_delete(int,uint32,uint32);
 /* bcm_knet_netif_create mapped to bcm_e_unavail */
 /* bcm_knet_netif_destroy mapped to bcm_e_unavail */
 /* bcm_knet_netif_get mapped to bcm_e_unavail */
+/* bcm_knet_netif_update_sfp_info mapped to bcm_e_unavail */
 /* bcm_knet_netif_t_init not dispatchable */
 /* bcm_knet_netif_traverse mapped to bcm_e_unavail */
 /* bcm_knetsync_deinit mapped to bcm_e_unavail */

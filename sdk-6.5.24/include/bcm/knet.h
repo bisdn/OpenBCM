@@ -36,6 +36,7 @@
                                                       to this interface. */
 
 /* BISDN extentions */
+#define BCM_KNET_NETIF_F_SFP            0x40000000 /* 0 => TP 1 => (Q)SFP */
 #define BCM_KNET_NETIF_F_TRACKED        0x80000000 /* Keep port config and state
                                                       in sync with this
                                                       this interface. */
@@ -165,6 +166,17 @@ extern int bcm_knet_netif_get(
     int unit, 
     int netif_id, 
     bcm_knet_netif_t *netif);
+
+#define BCM_KNET_SFP_MODDEF0 (1u << 0)
+
+/* push SFP state into netif */
+extern int bcm_knet_netif_update_sfp_info(
+    int unit,
+    bcm_port_t port,
+    uint8 flags,
+    uint16 eeprom_offset,
+    uint16 eeprom_len,
+    const uint8 *eeprom);
 
 #endif /* BCM_HIDE_DISPATCHABLE */
 

@@ -589,6 +589,10 @@ bcm_esw_knet_netif_create(int unit, bcm_knet_netif_t *netif)
     }
     if (netif->flags & BCM_KNET_NETIF_F_TRACKED) {
         netif_create.netif.flags |= KCOM_NETIF_F_TRACKED;
+
+        if (netif->flags & BCM_KNET_NETIF_F_SFP) {
+            netif_create.netif.flags |= KCOM_NETIF_F_SFP;
+        }
     }
     netif_create.netif.cb_user_data = netif->cb_user_data;
     netif_create.netif.vlan = netif->vlan;
@@ -721,6 +725,9 @@ bcm_esw_knet_netif_get(int unit, int netif_id, bcm_knet_netif_t *netif)
         if (netif_get.netif.flags & KCOM_NETIF_F_TRACKED) {
             netif->flags |= BCM_KNET_NETIF_F_TRACKED;
         }
+        if (netif_get.netif.flags & KCOM_NETIF_F_SFP) {
+            netif->flags |= BCM_KNET_NETIF_F_SFP;
+        }
 
         netif->id = netif_get.netif.id;
         netif->vlan = netif_get.netif.vlan;
@@ -732,6 +739,54 @@ bcm_esw_knet_netif_get(int unit, int netif_id, bcm_knet_netif_t *netif)
                    sizeof(netif->name) - 1);
     }
 
+    return rv;
+#endif
+}
+/*
+ * Function:
+ *      bcm_esw_knet_netif_update_sfp_info
+ * Purpose:
+ *      Push tracked port SFP module information.
+ * Parameters:
+ *      unit - (IN) Unit number.
+ *      port - (IN) Physical port number.
+ *      flags - (IN) SFP signals.
+ *      eeprom_offset - (IN) Module EEPROM data offset.
+ *      eeprom_len - (IN) Module EEPROM data length.
+ *      eeprom - (IN) Module EEPROM data.
+ * Returns:
+ *      BCM_E_xxx
+ * Notes:
+ */
+int
+bcm_esw_knet_netif_update_sfp_info(int unit, bcm_port_t port, uint8 flags,
+                                   uint16 eeprom_offset, uint16 eeprom_len,
+                                   const uint8 *eeprom)
+{
+#ifndef INCLUDE_KNET
+    return BCM_E_UNAVAIL;
+#else
+    kcom_msg_netif_sfp_info_t netif_sfp_info;
+    int rv;
+
+    if (eeprom_len > 0 && eeprom == NULL) {
+        return BCM_E_PARAM;
+    }
+
+    sal_memset(&netif_sfp_info, 0, sizeof(netif_sfp_info));
+    netif_sfp_info.hdr.opcode = KCOM_M_NETIF_SFP_INFO;
+    netif_sfp_info.hdr.unit = unit;
+
+    netif_sfp_info.netif_sfp_info.port = port;
+    netif_sfp_info.netif_sfp_info.flags = flags;
+    if (eeprom_len > 0) {
+        netif_sfp_info.netif_sfp_info.eeprom_offset = eeprom_offset;
+        netif_sfp_info.netif_sfp_info.eeprom_len = eeprom_len;
+        sal_memcpy(netif_sfp_info.netif_sfp_info.eeprom, eeprom, eeprom_len);
+    }
+
+    rv = soc_knet_cmd_req((kcom_msg_t *)&netif_sfp_info,
+                          sizeof(netif_sfp_info), sizeof(netif_sfp_info));
     return rv;
 #endif
 }

@@ -4669,6 +4669,7 @@ bcm_api_ref_t bcm_api_tbl[] = {
     (bcm_api_ref_t) bcm_knet_netif_create,
     (bcm_api_ref_t) bcm_knet_netif_destroy,
     (bcm_api_ref_t) bcm_knet_netif_get,
+    (bcm_api_ref_t) bcm_knet_netif_update_sfp_info,
     (bcm_api_ref_t) bcm_knet_netif_t_init,
     (bcm_api_ref_t) bcm_knet_netif_traverse,
     (bcm_api_ref_t) bcm_knetsync_deinit,

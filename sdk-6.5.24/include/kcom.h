@@ -52,6 +52,7 @@
 
 #define KCOM_M_NETIF_STATS      128 /* Netif stats */
 #define KCOM_M_NETIF_STATE      129 /* Netif link state */
+#define KCOM_M_NETIF_SFP_INFO   130 /* Netif SFP info */
 
 /*
  * Message status codes
@@ -113,6 +114,7 @@ typedef struct kcom_msg_hdr_s {
 /* If a netif has this flag, the packet sent to the netif can't be stripped tag or added tag */
 #define KCOM_NETIF_F_KEEP_RX_TAG (1U << 2)
 
+#define KCOM_NETIF_F_SFP         (1U << 6)
 #define KCOM_NETIF_F_TRACKED     (1U << 7)
 
 #define KCOM_NETIF_NAME_MAX     16
@@ -382,6 +384,18 @@ typedef struct kcom_netif_state_s {
     uint32 speed;
 } kcom_netif_state_t;
 
+#define KCOM_SFP_MODDEF0    (1u << 0)
+
+#define KCOM_SFP_EEPROM_MAX 640
+
+typedef struct kcom_netif_sfp_info_s {
+    uint8 port;
+    uint8 flags;
+    uint16 eeprom_len;
+    uint16 eeprom_offset;
+    uint8 eeprom[640];
+} kcom_netif_sfp_info_t;
+
 /*
  * Send literal string to/from kernel module.
  * Mainly for debugging purposes.
@@ -607,6 +621,15 @@ typedef struct kcom_msg_netif_state_s {
 } kcom_msg_netif_state_t;
 
 /*
+ * Netif sfp state
+ */
+typedef struct kcom_msg_netif_sfp_info_s {
+    kcom_msg_hdr_t hdr;
+    kcom_netif_sfp_info_t netif_sfp_info;
+} kcom_msg_netif_sfp_info_t;
+
+
+/*
  * All messages (e.g. for generic receive)
  */
 typedef union kcom_msg_s {
@@ -634,6 +657,7 @@ typedef union kcom_msg_s {
     kcom_msg_clock_cmd_t clock_cmd;
     kcom_msg_netif_stats_t netif_stats;
     kcom_msg_netif_state_t netif_state;
+    kcom_msg_netif_sfp_info_t netif_sfp_info;
 } kcom_msg_t;
 
 /*
