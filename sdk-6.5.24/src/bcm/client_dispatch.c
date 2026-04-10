@@ -1541,6 +1541,15 @@ bcm_client_knet_netif_get(
 }
 
 int 
+bcm_client_knet_netif_update_sfp_info(
+    int unit, 
+    int netif_id, 
+    uint8 flags)
+{
+    return BCM_E_UNAVAIL;
+}
+
+int 
 bcm_client_knet_netif_traverse(
     int unit, 
     bcm_knet_netif_traverse_cb trav_fn, 

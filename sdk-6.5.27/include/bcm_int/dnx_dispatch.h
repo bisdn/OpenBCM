@@ -4583,6 +4583,7 @@ extern int bcm_dnx_knet_init(int);
 extern int bcm_dnx_knet_netif_create(int,bcm_knet_netif_t *);
 extern int bcm_dnx_knet_netif_destroy(int,int);
 extern int bcm_dnx_knet_netif_get(int,int,bcm_knet_netif_t *);
+/* bcm_knet_netif_update_sfp_info mapped to bcm_e_unavail */
 /* bcm_knet_netif_t_init not dispatchable */
 extern int bcm_dnx_knet_netif_traverse(int,bcm_knet_netif_traverse_cb,void *);
 extern int bcm_dnx_knetsync_deinit(int);
