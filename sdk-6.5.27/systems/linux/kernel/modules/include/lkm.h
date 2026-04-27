@@ -19,14 +19,12 @@
 #include <linux/version.h>
 /* The version kconfig.h became available in. */
 #include <linux/kconfig.h>
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0)
-#if defined(INCLUDE_KNET) && LINUX_VERSION_CODE >= KERNEL_VERSION(4,0,0)
+#if defined(INCLUDE_KNET)
 #ifdef CONFIG_NF_CONNTRACK_MODULE
 #include <linux/netfilter.h>
 #endif
 #endif
 #include <linux/slab.h>
-#endif
 #include <linux/module.h>
 
 /* Helper defines for multi-version kernel  support */
@@ -54,8 +52,6 @@
 #ifdef CONFIG_DEVFS_FS
 #include <linux/devfs_fs_kernel.h>
 #endif
-
-#define PROC_INTERFACE_KERN_VER_3_10 (LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0))
 
 /* Compatibility Macros */
 
@@ -117,40 +113,6 @@
 #define proc_write write
 #define proc_lseek llseek
 #define proc_release release
-#endif
-
-#if PROC_INTERFACE_KERN_VER_3_10
-#define PROC_CREATE(_entry, _name, _acc, _path, _fops)                  \
-    do {                                                                \
-        _entry = proc_create(_name, _acc, _path, _fops);                \
-    } while (0)
-
-#define PROC_CREATE_DATA(_entry, _name, _acc, _path, _fops, _data)      \
-    do {                                                                \
-        _entry = proc_create_data(_name, _acc, _path, _fops, _data);    \
-    } while (0)
-
-#define PROC_PDE_DATA(_node) PDE_DATA(_node)
-
-#else
-#define PROC_CREATE(_entry, _name, _acc, _path, _fops)                  \
-    do {                                                                \
-        _entry = create_proc_entry(_name, _acc, _path);                 \
-        if (_entry) {                                                   \
-            _entry->proc_fops = _fops;                                  \
-        }                                                               \
-    } while (0)
-
-#define PROC_CREATE_DATA(_entry, _name, _acc, _path, _fops, _data)      \
-    do {                                                                \
-        _entry = create_proc_entry(_name, _acc, _path);                 \
-        if (_entry) {                                                   \
-            _entry->proc_fops = _fops;                                  \
-            _entry->data=_data;                                         \
-        }                                                               \
-    } while (0)
-
-#define PROC_PDE_DATA(_node) PROC_I(_node)->pde->data
 #endif
 
 #endif /* __COMMON_LINUX_KRN_LKM_H__ */

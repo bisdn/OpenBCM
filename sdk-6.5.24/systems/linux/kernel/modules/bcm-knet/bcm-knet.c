@@ -313,23 +313,7 @@ static int napi_weight = 0;
 #define NETDEV_UPDATE_TRANS_START_TIME(dev) netif_trans_update(dev)
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,10,0)
-#define bkn_vlan_hwaccel_put_tag(_skb, _proto, _tci) \
-    __vlan_hwaccel_put_tag(_skb, _tci)
-#else
-#define bkn_vlan_hwaccel_put_tag(_skb, _proto, _tci) \
-    __vlan_hwaccel_put_tag(_skb, htons(_proto), _tci)
-#endif
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,1,0)
-#define ETH_P_8021AD    0x88A8 /* 802.1ad Service VLAN */
-#endif
-
 #include <linux/net_tstamp.h>
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,2,0)
-#define HWTSTAMP_TX_ONESTEP_SYNC 2
-#endif
 
 /*
  * Get a 16-bit value from packet offset
@@ -3842,13 +3826,13 @@ bkn_do_api_rx(bkn_switch_info_t *sinfo, int chan, int budget)
                              */
 
                             if (priv->flags & KCOM_NETIF_F_RCPU_ENCAP) {
-                                bkn_vlan_hwaccel_put_tag(skb, ETH_P_8021Q, tci);
+                                __vlan_hwaccel_put_tag(skb, ETH_P_8021Q, tci);
                             } else {
                                 if (vlan_proto == ETH_P_8021AD) {
-                                    bkn_vlan_hwaccel_put_tag
+                                    __vlan_hwaccel_put_tag
                                         (skb, ETH_P_8021AD, tci);
                                 } else {
-                                    bkn_vlan_hwaccel_put_tag
+                                    __vlan_hwaccel_put_tag
                                         (skb, ETH_P_8021Q, tci);
                                 }
                             }
@@ -4004,13 +3988,13 @@ bkn_skb_rx_netif_process(bkn_switch_info_t *sinfo, int dest_id, int chan,
             uint16_t tci = PKT_U16_GET(skb->data, 14);
 
             if (priv->flags & KCOM_NETIF_F_RCPU_ENCAP) {
-                bkn_vlan_hwaccel_put_tag(skb, ETH_P_8021Q, tci);
+                __vlan_hwaccel_put_tag(skb, ETH_P_8021Q, tci);
             } else {
                 if (vlan_proto == ETH_P_8021AD) {
-                    bkn_vlan_hwaccel_put_tag
+                    __vlan_hwaccel_put_tag
                         (skb, ETH_P_8021AD, tci);
                 } else {
-                    bkn_vlan_hwaccel_put_tag
+                    __vlan_hwaccel_put_tag
                         (skb, ETH_P_8021Q, tci);
                 }
             }
@@ -5562,7 +5546,6 @@ bkn_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
         return copy_to_user(ifr->ifr_data, &config, sizeof(config)) ? -EFAULT : 0;
     }
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,14,0))
     if (cmd == SIOCGHWTSTAMP) {
         config.flags = 0;
         config.tx_type = priv->tx_hwts;
@@ -5570,7 +5553,6 @@ bkn_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
         return copy_to_user(ifr->ifr_data, &config, sizeof(config)) ? -EFAULT : 0;
     }
-#endif
 
     return -EINVAL;
 }
@@ -6725,7 +6707,6 @@ bkn_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *drvinfo)
     strscpy(drvinfo->bus_info, "N/A", sizeof(drvinfo->bus_info));
 }
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0))
 static int
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(6,11,0))
 bkn_get_ts_info(struct net_device *dev, struct ethtool_ts_info *info)
@@ -6788,7 +6769,6 @@ bkn_get_ts_info(struct net_device *dev, struct kernel_ethtool_ts_info *info)
 
     return 0;
 }
-#endif
 
 int bkn_get_link_ksettings(struct net_device *dev,
                            struct ethtool_link_ksettings *cmd)
@@ -6833,9 +6813,7 @@ static const struct ethtool_ops bkn_ethtool_ops = {
     .get_drvinfo        = bkn_get_drvinfo,
     .get_link           = ethtool_op_get_link,
     .get_link_ksettings = bkn_get_link_ksettings,
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0))
     .get_ts_info        = bkn_get_ts_info,
-#endif
 };
 
 static struct net_device *
@@ -8034,31 +8012,31 @@ bkn_proc_init(void)
 {
     struct proc_dir_entry *entry;
 
-    PROC_CREATE(entry, "link", 0666, bkn_proc_root, &bkn_proc_link_file_ops);
+    entry = proc_create("link", 0666, bkn_proc_root, &bkn_proc_link_file_ops);
     if (entry == NULL) {
         return -1;
     }
-    PROC_CREATE(entry, "rate", 0666, bkn_proc_root, &bkn_proc_rate_file_ops);
+    entry = proc_create("rate", 0666, bkn_proc_root, &bkn_proc_rate_file_ops);
     if (entry == NULL) {
         return -1;
     }
-    PROC_CREATE(entry, "dma", 0, bkn_proc_root, &bkn_seq_dma_file_ops);
+    entry = proc_create("dma", 0, bkn_proc_root, &bkn_seq_dma_file_ops);
     if (entry == NULL) {
         return -1;
     }
-    PROC_CREATE(entry, "debug", 0666, bkn_proc_root, &bkn_proc_debug_file_ops);
+    entry = proc_create("debug", 0666, bkn_proc_root, &bkn_proc_debug_file_ops);
     if (entry == NULL) {
         return -1;
     }
-    PROC_CREATE(entry, "stats", 0666, bkn_proc_root, &bkn_proc_stats_file_ops);
+    entry = proc_create("stats", 0666, bkn_proc_root, &bkn_proc_stats_file_ops);
     if (entry == NULL) {
         return -1;
     }
-    PROC_CREATE(entry, "dstats", 0666, bkn_proc_root, &bkn_proc_dstats_file_ops);
+    entry = proc_create("dstats", 0666, bkn_proc_root, &bkn_proc_dstats_file_ops);
     if (entry == NULL) {
         return -1;
     }
-    PROC_CREATE(entry, "ptp_stats", 0666, bkn_proc_root, &bkn_proc_ptp_stats_file_ops);
+    entry = proc_create("ptp_stats", 0666, bkn_proc_root, &bkn_proc_ptp_stats_file_ops);
     if (entry == NULL) {
         return -1;
     }

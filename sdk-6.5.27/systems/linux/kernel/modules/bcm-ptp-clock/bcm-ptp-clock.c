@@ -11,7 +11,6 @@ MODULE_AUTHOR("Broadcom Corporation");
 MODULE_DESCRIPTION("PTP Clock Driver for Broadcom XGS/DNX Switch");
 MODULE_LICENSE("GPL");
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(3,17,0)
 #include <linux-bde.h>
 #include <kcom.h>
 #include <bcm-knet.h>
@@ -3274,8 +3273,6 @@ static int bksync_ptp_remove(void)
 
     return 0;
 }
-#endif
-
 
 
 
@@ -3283,12 +3280,8 @@ static int bksync_ptp_remove(void)
     static int
 _pprint(struct seq_file *m)
 {
-#if LINUX_VERSION_CODE > KERNEL_VERSION(3,17,0)
     
     pprintf(m, "Broadcom BCM PTP Hardware Clock Module\n");
-#else
-    pprintf(m, "Broadcom BCM PTP Hardware Clock Module not supported\n");
-#endif
     return 0;
 }
 
@@ -3296,24 +3289,16 @@ _pprint(struct seq_file *m)
     static int
 _init(void)
 {
-#if LINUX_VERSION_CODE > KERNEL_VERSION(3,17,0)
     bksync_ptp_register();
     return 0;
-#else
-    return -1;
-#endif
 }
 
 
     static int
 _cleanup(void)
 {
-#if LINUX_VERSION_CODE > KERNEL_VERSION(3,17,0)
     bksync_ptp_remove();
     return 0;
-#else
-    return -1;
-#endif
 }
 
 static gmodule_t _gmodule = {

@@ -35,10 +35,6 @@
 #endif /* CONFIG_NONCOHERENT_IO || CONFIG_DMA_NONCOHERENT */
 #endif /* __mips__ */
 
-#if defined(BCM958525) && (LINUX_VERSION_CODE <= KERNEL_VERSION(3,6,5))
-#define REMAP_DMA_NONCACHED
-#endif
-
 #ifndef DMA_BIT_MASK
 #define DMA_BIT_MASK(n) (((n) == 64) ? ~0ULL : ((1ULL<<(n))-1))
 #endif
