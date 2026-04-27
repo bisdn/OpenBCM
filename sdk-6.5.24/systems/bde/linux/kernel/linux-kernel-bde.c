@@ -2136,23 +2136,8 @@ _msi_connect(bde_ctrl_t *ctrl)
             gprintk("MSIX Table size = %d\n", ctrl->msix_cnt);
         for (i = 0; i < ctrl->msix_cnt; i++)
                 ctrl->entries[i].entry = i;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,12,0)
         ret = pci_enable_msix_range(ctrl->pci_device,
                                            ctrl->entries, ctrl->msix_cnt, ctrl->msix_cnt);
-#else
-        ret = pci_enable_msix(ctrl->pci_device,
-                                           ctrl->entries, ctrl->msix_cnt);
-        if (ret > 0) {
-            /* Not enough vectors available , Retry MSI-X */
-            gprintk("Retrying with MSI-X interrupts = %d\n", ret);
-            ctrl->msix_cnt = ret;
-            msixcnt = ret;
-            ret = pci_enable_msix(ctrl->pci_device,
-                                           ctrl->entries, ctrl->msix_cnt);
-            if (ret != 0)
-                goto er_intx_free;
-        }
-#endif
         if (ret < 0) {
             /* Error */
             goto er_intx_free;

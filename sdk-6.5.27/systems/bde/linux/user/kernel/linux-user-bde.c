@@ -27,9 +27,7 @@
 #include <linux/jiffies.h>
 #include "linux-user-bde.h"
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,12,0)
 #include <linux/uaccess.h>
-#endif
 
 MODULE_AUTHOR("Broadcom Corporation");
 MODULE_DESCRIPTION("User BDE Helper Module");
