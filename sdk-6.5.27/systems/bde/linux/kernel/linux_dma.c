@@ -134,11 +134,7 @@ static int mem_flags = GFP_ATOMIC | GFP_DMA;
 #endif
 
 #if COHERENT_ALLOC_USE_DMA_TO_PHYS
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,16,0))
 #include <linux/dma-direct.h>
-#else
-#include <asm/dma-mapping.h>
-#endif
 #endif
 
 /* Macro to get the host physical address when using dma_alloc_coherent() */

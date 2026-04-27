@@ -307,12 +307,6 @@ static int napi_weight = 0;
 #define PCI_SET_DMA_MASK(pdev, mask) dma_set_mask(&(pdev)->dev, (mask))
 #endif
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(4,7,0))
-#define NETDEV_UPDATE_TRANS_START_TIME(dev) dev->trans_start = jiffies
-#else
-#define NETDEV_UPDATE_TRANS_START_TIME(dev) netif_trans_update(dev)
-#endif
-
 #include <linux/net_tstamp.h>
 
 /*
@@ -6602,7 +6596,7 @@ bkn_tx(struct sk_buff *skb, struct net_device *dev)
         return NETDEV_TX_BUSY;
     }
 
-    NETDEV_UPDATE_TRANS_START_TIME(dev);
+    netif_trans_update(dev);
 
     spin_unlock_irqrestore(&sinfo->lock, flags);
 
@@ -6645,21 +6639,12 @@ bkn_timer_func(bkn_switch_info_t *sinfo)
     spin_unlock_irqrestore(&sinfo->lock, flags);
 }
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(4,15,0))
-static void
-bkn_timer(unsigned long context)
-{
-    bkn_switch_info_t *sinfo = (bkn_switch_info_t *)context;
-    return bkn_timer_func(sinfo);
-}
-#else
 static void
 bkn_timer(struct timer_list *t)
 {
     bkn_switch_info_t *sinfo = from_timer(sinfo, t, timer);
     return bkn_timer_func(sinfo);
 }
-#endif
 
 static void
 bkn_rx_add_tokens(bkn_switch_info_t *sinfo, int chan)
@@ -6736,21 +6721,12 @@ bkn_rxtick_func(bkn_switch_info_t *sinfo)
     add_timer(&sinfo->rxtick);
 }
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(4,15,0))
-static void
-bkn_rxtick(unsigned long context)
-{
-    bkn_switch_info_t *sinfo = (bkn_switch_info_t *)context;
-    return bkn_rxtick_func(sinfo);
-}
-#else
 static void
 bkn_rxtick(struct timer_list *t)
 {
     bkn_switch_info_t *sinfo = from_timer(sinfo, t, rxtick);
     return bkn_rxtick_func(sinfo);
 }
-#endif
 
 static void
 bkn_rx_rate_config(bkn_switch_info_t *sinfo)
@@ -6837,13 +6813,7 @@ bkn_create_sinfo(int dev_no)
     skb_queue_head_init(&sinfo->tx_ptp_queue);
     INIT_WORK(&sinfo->tx_ptp_work, bkn_hw_tstamp_tx_work);
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(4,15,0))
-    init_timer(&sinfo->timer);
-    sinfo->timer.data = (unsigned long)sinfo;
-    sinfo->timer.function = bkn_timer;
-#else
     timer_setup(&sinfo->timer, bkn_timer, 0);
-#endif
     sinfo->timer.expires = jiffies + 1;
 
     INIT_LIST_HEAD(&sinfo->tx.api_dcb_list);
@@ -6862,13 +6832,7 @@ bkn_create_sinfo(int dev_no)
         sinfo->rx[0].use_rx_skb = 0;
     }
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(4,15,0))
-    init_timer(&sinfo->rxtick);
-    sinfo->rxtick.data = (unsigned long)sinfo;
-    sinfo->rxtick.function = bkn_rxtick;
-#else
     timer_setup(&sinfo->rxtick, bkn_rxtick, 0);
-#endif
     sinfo->rxtick.expires = jiffies + 1;
 
     for (chan = 0; chan < NUM_RX_CHAN; chan++) {
@@ -7064,9 +7028,7 @@ bkn_init_ndev(u8 *mac, char *name)
     if (dev->mtu == 0) {
         dev->mtu = rx_buffer_size;
     }
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,10,0))
     dev->max_mtu = rx_buffer_size;
-#endif
 
     /* Device vectors */
     dev->netdev_ops = &bkn_netdev_ops;
