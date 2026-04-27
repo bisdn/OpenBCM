@@ -106,30 +106,9 @@
 #define bus_to_virt phys_to_virt
 #endif
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,21))
-#define VIRT_TO_PAGE(p)     virt_to_page((void*)(p))
-#else
-#define VIRT_TO_PAGE(p)     virt_to_page((p))
-#endif
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27))
-#define BDE_DMA_MAPPING_ERROR(d, p)     dma_mapping_error((d),(p))
-#else
-#define BDE_DMA_MAPPING_ERROR(d, p)     dma_mapping_error((p))
-#endif
-
 #ifndef KMALLOC_MAX_SIZE
 #define KMALLOC_MAX_SIZE (1UL << (MAX_ORDER - 1 + PAGE_SHIFT))
 #endif
-
-/* Compatibility */
-#ifdef LKM_2_4
-#define MEM_MAP_RESERVE mem_map_reserve
-#define MEM_MAP_UNRESERVE mem_map_unreserve
-#else /* LKM_2_6 */
-#define MEM_MAP_RESERVE SetPageReserved
-#define MEM_MAP_UNRESERVE ClearPageReserved
-#endif /* LKM_2_x */
 
 #ifndef GFP_DMA32
 #define GFP_DMA32 0
@@ -195,24 +174,24 @@ MODULE_PARM_DESC(dma_debug,
 
 /* DMA memory pool size */
 static char *dmasize;
-LKM_MOD_PARAM(dmasize, "s", charp, 0);
+module_param(dmasize, charp, 0);
 MODULE_PARM_DESC(dmasize,
 "Specify DMA memory size (default 4MB)");
 
 /* Select DMA memory pool allocation method */
 static int dmaalloc = ALLOC_METHOD_DEFAULT;
-LKM_MOD_PARAM(dmaalloc, "i", int, 0);
+module_param(dmaalloc, int, 0);
 MODULE_PARM_DESC(dmaalloc, "Select DMA memory allocation method");
 
 /* Use high memory for DMA */
 static char *himem;
-LKM_MOD_PARAM(himem, "s", charp, 0);
+module_param(himem, charp, 0);
 MODULE_PARM_DESC(himem,
 "Use high memory for DMA (default no)");
 
 /* Physical high memory address to use for DMA */
 static char *himemaddr = 0;
-LKM_MOD_PARAM(himemaddr, "s", charp, 0);
+module_param(himemaddr, charp, 0);
 MODULE_PARM_DESC(himemaddr,
 "Physical address to use for high memory DMA");
 
@@ -515,7 +494,7 @@ _dma_segment_alloc(size_t size, size_t blk_size)
             for (page_addr = dseg->blk_ptr[i];
                  page_addr < dseg->blk_ptr[i] + dseg->blk_size;
                  page_addr += PAGE_SIZE) {
-                MEM_MAP_RESERVE(VIRT_TO_PAGE(page_addr));
+                SetPageReserved(virt_to_page((void*)page_addr));
             }
         } else if (dseg->blk_ptr[i]) {
             dseg->blk_ptr[i] &= ~3;
@@ -548,7 +527,7 @@ _dma_segment_free(dma_segment_t *dseg)
                 for (page_addr = dseg->blk_ptr[i];
                      page_addr < dseg->blk_ptr[i] + dseg->blk_size;
                      page_addr += PAGE_SIZE) {
-                    MEM_MAP_UNRESERVE(VIRT_TO_PAGE(page_addr));
+                    ClearPageReserved(virt_to_page((void*)page_addr));
                 }
                 free_pages(dseg->blk_ptr[i], dseg->blk_order);
             }
@@ -680,7 +659,7 @@ _edk_mpool_alloc(int dev_id, size_t size)
     /* Use dma_map_single to obtain DMA bus address or IOVA if IOMMU is present. */
     if (dev) {
         pbase = dma_map_single(dev, dma_vbase, size, DMA_BIDIRECTIONAL);
-        if (BDE_DMA_MAPPING_ERROR(dev, pbase)) {
+        if (dma_mapping_error(dev, pbase)) {
             gprintk("Failed to map memory at %p for EDK\n", dma_vbase);
             _pgfree(dma_vbase);
             dma_vbase = NULL;
@@ -973,7 +952,7 @@ void _dma_per_device_init(int dev_index)
         _dma_pool_alloc_state == DMA_POOL_MAPPED)) {
             /* Map RAM virtual address space for DMA usage and obtain DMA bus address or IOVA if iommu is present. */
             dma_addr = dma_map_single(dev, _dma_vbase, _dma_mem_size, DMA_BIDIRECTIONAL);
-            if (BDE_DMA_MAPPING_ERROR(dev, dma_addr)) {
+            if (dma_mapping_error(dev, dma_addr)) {
                 gprintk("Failed to map DMA buffer pool for device %d at kernel_virt:0x%lx\n", dev_index, (unsigned long)_dma_vbase);
                 if (_dma_pool_alloc_state == DMA_POOL_INITIALIZED) {
                     _mpool_free();
@@ -1294,8 +1273,8 @@ _dma_pprint(struct seq_file *m)
  */
 
 #ifdef BDE_EDK_SUPPORT
-LKM_EXPORT_SYM(lkbde_edk_get_dma_info);
+EXPORT_SYMBOL(lkbde_edk_get_dma_info);
 #endif
-LKM_EXPORT_SYM(kmalloc_giant);
-LKM_EXPORT_SYM(kfree_giant);
-LKM_EXPORT_SYM(lkbde_get_dma_info);
+EXPORT_SYMBOL(kmalloc_giant);
+EXPORT_SYMBOL(kfree_giant);
+EXPORT_SYMBOL(lkbde_get_dma_info);

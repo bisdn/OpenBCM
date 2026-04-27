@@ -65,7 +65,6 @@ extern int bcm_sim_path_get(void);
 #include <linux/version.h>
 
 #ifdef KEYSTONE
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
 #include <linux/types.h>
 #include <linux/spi/spidev.h>
 
@@ -73,16 +72,13 @@ extern int bcm_sim_path_get(void);
 #include <sal/appl/config.h>
 
 #define LINUX_SPIDEV_SUPPORT 1
-#else
-#define LINUX_SPIDEV_SUPPORT 0
-#endif
 #else /* !KEYSTONE */
 
 #define LINUX_SPIDEV_SUPPORT 0
 
 #endif /* KEYSTONE */
 
-#if defined(BCM_ESW_SUPPORT) && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
+#if defined(BCM_ESW_SUPPORT)
 #define CMIC_SPI_SUPPORT 1
 #endif
 #ifndef CMIC_SPI_SUPPORT

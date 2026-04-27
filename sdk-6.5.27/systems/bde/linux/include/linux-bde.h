@@ -62,21 +62,6 @@
 
 #ifdef __KERNEL__
 #include <linux/types.h>
-/* Key stone and Raptor has 2.6.21 but don't have definition */
-#if defined(KEYSTONE) || defined(RAPTOR)
-#if (LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,21))
-    #ifdef PHYS_ADDRS_ARE_64BITS
-    typedef u64 phys_addr_t;
-    #else
-    typedef u32 phys_addr_t;
-    #endif
-  #endif
-#endif
-#endif
-
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,15))
-#define LINUX_BDE_DMA_DEVICE_SUPPORT
 #endif
 
 #define LINUX_KERNEL_BDE_NAME 	"linux-kernel-bde"
@@ -262,7 +247,7 @@ extern int lkbde_intr_cb_register(int d,
 
 #ifdef BCM_SAND_SUPPORT
 #include <linux/version.h>
-#if defined(__DUNE_LINUX_BCM_CPU_PCIE__) && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,26)
+#if defined(__DUNE_LINUX_BCM_CPU_PCIE__)
 #ifndef _SIMPLE_MEMORY_ALLOCATION_
 #define _SIMPLE_MEMORY_ALLOCATION_ 1
 #endif

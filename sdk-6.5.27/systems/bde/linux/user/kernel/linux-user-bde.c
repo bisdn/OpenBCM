@@ -186,23 +186,23 @@ static uint32 *ihost_intr_enable_base = NULL;
 
 /* Module parameter for Interruptible timeout */
 static int intr_timeout = 0;
-LKM_MOD_PARAM(intr_timeout, "i", int, (S_IRUGO | S_IWUSR));
+module_param(intr_timeout, int, (S_IRUGO | S_IWUSR));
 MODULE_PARM_DESC(intr_timeout,
 "Interruptible wait timeout in milliseconds for Interrupt to be triggered.");
 
 static ulong intr_count = 0;
-LKM_MOD_PARAM(intr_count, "intr_count", ulong, (S_IRUGO | S_IWUSR));
+module_param(intr_count, ulong, (S_IRUGO | S_IWUSR));
 MODULE_PARM_DESC(intr_count,
 "Interrupt count provides information about the number of times the ISR is called.");
 
 static ulong intr_timeout_count = 0;
-LKM_MOD_PARAM(intr_timeout_count, "intr_timeout_count", ulong, (S_IRUGO | S_IWUSR));
+module_param(intr_timeout_count, ulong, (S_IRUGO | S_IWUSR));
 MODULE_PARM_DESC(intr_timeout_count,
 "Interrupt timeout count provides information about the number of times the interrupt wait is timeed out.");
 
 /* Debug output */
 static int debug;
-LKM_MOD_PARAM(debug, "i", int, (S_IRUGO | S_IWUSR));
+module_param(debug, int, (S_IRUGO | S_IWUSR));
 MODULE_PARM_DESC(debug,
 "Set debug level (default 0).");
 

@@ -15,19 +15,6 @@
 /* Module Vector Table */
 static gmodule_t* _gmodule = NULL;
 
-
-/* Allow DEVFS Support on 2.4 Kernels */
-#if defined(LKM_2_4) && defined(CONFIG_DEVFS_FS)
-#define GMODULE_CONFIG_DEVFS_FS
-#endif
-
-
-#ifdef GMODULE_CONFIG_DEVFS_FS
-devfs_handle_t devfs_handle = NULL;
-#endif
-
-
-
 static int _dbg_enable = 0;
 
 static int
@@ -349,11 +336,7 @@ cleanup_module(void)
     }
   
     /* Finally, remove ourselves from the universe */
-#ifdef GMODULE_CONFIG_DEVFS_FS
-    if(devfs_handle) devfs_unregister(devfs_handle);
-#else
     unregister_chrdev(_gmodule->major, _gmodule->name);
-#endif
 }
 
 int __init
@@ -367,21 +350,6 @@ init_module(void)
 
 
     /* Register ourselves */
-#ifdef GMODULE_CONFIG_DEVFS_FS
-    devfs_handle = devfs_register(NULL, 
-				  _gmodule->name, 
-				  DEVFS_FL_NONE, 
-				  _gmodule->major,
-				  _gmodule->minor, 
-				  S_IFCHR | S_IRUGO | S_IWUGO,
-				  &_gmodule_fops, 
-				  NULL);
-    if(!devfs_handle) {
-	printk(KERN_WARNING "%s: can't register device with devfs", 
-	       _gmodule->name);
-    }
-    rc = 0;
-#else
     rc = register_chrdev(_gmodule->major, 
 			 _gmodule->name, 
 			 &_gmodule_fops);
@@ -394,17 +362,12 @@ init_module(void)
     if(_gmodule->major == 0) {
 	_gmodule->major = rc;
     }
-#endif
 
     /* Specific module Initialization */
     if(_gmodule->init) {
 	int rc;
 	if((rc = _gmodule->init()) < 0) {
-#ifdef GMODULE_CONFIG_DEVFS_FS
-            if(devfs_handle) devfs_unregister(devfs_handle);
-#else
             unregister_chrdev(_gmodule->major, _gmodule->name);
-#endif
 	    return rc;
 	}
     }

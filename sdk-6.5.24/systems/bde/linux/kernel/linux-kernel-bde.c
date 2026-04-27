@@ -77,19 +77,19 @@ MODULE_LICENSE("GPL");
 #define BDE_PCIE_MAXPAYLOAD_DEFAULT 256
 #endif
 int maxpayload = BDE_PCIE_MAXPAYLOAD_DEFAULT;
-LKM_MOD_PARAM(maxpayload, "i", int, 0);
+module_param(maxpayload, int, 0);
 MODULE_PARM_DESC(maxpayload,
 "Limit maximum payload size and request size on PCIe devices");
 
 /* Use MSI or MSIX interrupts */
 int usemsi = -1;
-LKM_MOD_PARAM(usemsi, "i", int, 0);
+module_param(usemsi, int, 0);
 MODULE_PARM_DESC(usemsi,
 "Use MSI/ MSIX interrupts if supported by kernel");
 
 /* Ignore all recognized devices (for debug purposes) */
 int nodevices;
-LKM_MOD_PARAM(nodevices, "i", int, 0);
+module_param(nodevices, int, 0);
 MODULE_PARM_DESC(nodevices,
 "Ignore all recognized devices (default no)");
 
@@ -107,15 +107,6 @@ int msixcnt = 1;
 #define PCI_DEVICE_ID_PLX_9056 0x9056
 #endif
 
-/* For 2.4.x kernel support */
-#ifndef IRQF_SHARED
-#define IRQF_SHARED     SA_SHIRQ
-#endif
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18)
-typedef unsigned long resource_size_t;
-#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18) */
-
 #ifdef BCM_ICS
 #define BCM_ICS_CMIC_BASE       0x08000000
 #else
@@ -123,8 +114,8 @@ typedef unsigned long resource_size_t;
 /* Force interrupt line */
 static int forceirq = -1;
 static uint32_t forceirqubm = 0xffffffff;
-LKM_MOD_PARAM(forceirq, "i", int, 0);
-LKM_MOD_PARAM(forceirqubm, "i", uint, 0);
+module_param(forceirq, int, 0);
+module_param(forceirqubm, uint, 0);
 MODULE_PARM_DESC(forceirq,
 "Override IRQ line assigned by boot loader");
 MODULE_PARM_DESC(forceirqubm,
@@ -132,13 +123,13 @@ MODULE_PARM_DESC(forceirqubm,
 
 /* Create SPI slave device (cannot be probed) */
 static uint32_t spi_devid = 0;
-LKM_MOD_PARAM(spi_devid, "i", uint, 0);
+module_param(spi_devid, uint, 0);
 MODULE_PARM_DESC(spi_devid,
 "Create SPI slave device using this device ID");
 
 /* Select SPI device revision (cannot be probed) */
 static uint32_t spi_revid = 1;
-LKM_MOD_PARAM(spi_revid, "i", uint, 0);
+module_param(spi_revid, uint, 0);
 MODULE_PARM_DESC(spi_revid,
 "Select device revision for SPI slave device");
 
@@ -146,46 +137,27 @@ MODULE_PARM_DESC(spi_revid,
 
 /* Debug output */
 static int debug;
-LKM_MOD_PARAM(debug, "i", int, 0);
+module_param(debug, int, 0);
 MODULE_PARM_DESC(debug,
 "Set debug level (default 0");
 /* Use high memory for DMA */
 
 /* module param for probing EB devices. */
 static char *eb_bus;
-LKM_MOD_PARAM(eb_bus, "s", charp, 0);
+module_param(eb_bus, charp, 0);
 MODULE_PARM_DESC(eb_bus,
 "List of EB devices on platform. Input format (BA=%x IRQ=%d RD16=%d WR16=%d");
 
 #ifdef KEYSTONE
 /* Force SPI Frequency */
 static int spifreq = 0;
-LKM_MOD_PARAM(spifreq, "i", int, 0);
+module_param(spifreq, int, 0);
 MODULE_PARM_DESC(spifreq,
 "Force SPI Frequency for Keystone CPU (0 for default frequency)");
 #endif
 
 
 /* Compatibility */
-#ifdef LKM_2_4
-#define _ISR_RET void
-#define _ISR_PARAMS(_i,_d,_r) int _i, void *_d, struct pt_regs *_r
-#define IRQ_NONE
-#define IRQ_HANDLED
-#define SYNC_IRQ(_i) synchronize_irq()
-#else /* LKM_2_6 */
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30))
-#define _ISR_RET irqreturn_t
-#else
-#define _ISR_RET int
-#endif
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,19))
-#define _ISR_PARAMS(_i,_d,_r) int _i, void *_d
-#else
-#define _ISR_PARAMS(_i,_d,_r) int _i, void *_d, struct pt_regs *_r
-typedef irqreturn_t (*irq_handler_t)(int _i, void *_d, struct pt_regs *_r);
-#endif
-#define SYNC_IRQ(_i) synchronize_irq(_i)
 char * ___strtok;
 char * strtok(char * s,const char * ct)
 {
@@ -205,9 +177,8 @@ char * strtok(char * s,const char * ct)
     ___strtok = send;
     return (sbegin);
 }
-LKM_EXPORT_SYM(___strtok);
-LKM_EXPORT_SYM(strtok);
-#endif /* LKM_2_x */
+EXPORT_SYMBOL(___strtok);
+EXPORT_SYMBOL(strtok);
 
 /* PCIe capabilities */
 #ifndef PCI_CAP_ID_EXP
@@ -233,12 +204,6 @@ LKM_EXPORT_SYM(strtok);
 #endif
 #ifndef PCI_EXT_CAP_ID_VNDR
 #define PCI_EXT_CAP_ID_VNDR     0x0b
-#endif
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
-#define PCI_FIND_DEV(_d, _v, _fr)       pci_find_device(_d, _v, _fr)
-#else
-#define PCI_FIND_DEV(_d, _v, _fr)       pci_get_device(_d, _v, _fr)
 #endif
 
 #if defined(CONFIG_RESOURCES_64BIT) || defined(CONFIG_PHYS_ADDR_T_64BIT)
@@ -301,9 +266,7 @@ typedef struct bde_ctrl_s {
 #define pci_device  dev._pci_dev
 #define spi_device  dev._spi_dev
 
-#ifdef LINUX_BDE_DMA_DEVICE_SUPPORT
     struct device *dma_dev;
-#endif
 
     struct memwin_s iowin[BDE_NUM_IOWIN_MAX];
 
@@ -810,9 +773,7 @@ iproc_cmicd_probe(struct platform_device *pldev)
     ctrl->isr = NULL;
     ctrl ->isr_data = NULL;
 
-#ifdef LINUX_BDE_DMA_DEVICE_SUPPORT
     ctrl->dma_dev = &pldev->dev;
-#endif
 
     /* Let's boogie */
     _bde_add_device();
@@ -1873,9 +1834,9 @@ p2p_bridge(void)
     uint8 bridge_ctrl;
     uint8 rc_index;
 
-    if ((dev = PCI_FIND_DEV(DC21150_VENDOR_ID, DC21150_DEVICE_ID, NULL)) != NULL ||
-        (dev = PCI_FIND_DEV(HINT_HB4_VENDOR_ID, HINT_HB4_DEVICE_ID, NULL)) != NULL ||
-        (dev = PCI_FIND_DEV(PI7C8150_VENDOR_ID, PI7C8150_DEVICE_ID, NULL)) != NULL) {
+    if ((dev = pci_get_device(DC21150_VENDOR_ID, DC21150_DEVICE_ID, NULL)) != NULL ||
+        (dev = pci_get_device(HINT_HB4_VENDOR_ID, HINT_HB4_DEVICE_ID, NULL)) != NULL ||
+        (dev = pci_get_device(PI7C8150_VENDOR_ID, PI7C8150_DEVICE_ID, NULL)) != NULL) {
 
         if (debug >= 1) gprintk("fixing up PCI-to-PCI bridge\n");
         /* Adjust command register */
@@ -1899,7 +1860,7 @@ p2p_bridge(void)
         /* Avoid DMA data corruption */
         if (dev->vendor == HINT_HB4_VENDOR_ID) {
             /* Fix for HiNT bridge and BCM4704 DMA problem */
-            if ((dev = PCI_FIND_DEV(BCM4704_VENDOR_ID, BCM4704_DEVICE_ID, NULL)) != NULL) {
+            if ((dev = pci_get_device(BCM4704_VENDOR_ID, BCM4704_DEVICE_ID, NULL)) != NULL) {
                 /* Reset PrefetchEn (PE) */
                 pci_write_config_dword(dev, 0x8c, 1);
                 if (debug >= 1) {
@@ -1909,7 +1870,7 @@ p2p_bridge(void)
         }
     }
     /* Enable fast back-to-back read/write */
-    if ((dev = PCI_FIND_DEV(PI7C8150_VENDOR_ID, PI7C8150_DEVICE_ID, NULL)) != NULL) {
+    if ((dev = pci_get_device(PI7C8150_VENDOR_ID, PI7C8150_DEVICE_ID, NULL)) != NULL) {
         pci_read_config_word(dev, PCI_COMMAND, &cmd);
         cmd |= PCI_COMMAND_FAST_BACK;
         pci_read_config_byte(dev, PCI_BRIDGE_CONTROL, &bridge_ctrl);
@@ -1922,19 +1883,19 @@ p2p_bridge(void)
     for(rc_index = 0; rc_index < MAX_RC_NUM; rc_index++) {
         dev_on_rc = pci_do_rc_dev_find(rc_index);
         if (dev_on_rc != NULL ) {
-            dev = PCI_FIND_DEV(0x184e, 0x1004, NULL);
+            dev = pci_get_device(0x184e, 0x1004, NULL);
             if (dev != NULL ) {
                 pci_write_config_dword(dev,0x78,MAX_PAYLOAD_256B |
                                                 MAX_READ_REQ_256B);
             }
         }
     }
-    if ((dev = PCI_FIND_DEV(0x14e4, 0xb634, NULL)) != NULL) {
+    if ((dev = pci_get_device(0x14e4, 0xb634, NULL)) != NULL) {
         pci_write_config_dword(dev,0x78,MAX_PAYLOAD_256B |
                                         MAX_READ_REQ_256B);
     }
 
-    if ((dev = PCI_FIND_DEV(PCI_VNDID_PERICOM, PCI_DEVID_PI7C9X130, NULL)) != NULL) {
+    if ((dev = pci_get_device(PCI_VNDID_PERICOM, PCI_DEVID_PI7C9X130, NULL)) != NULL) {
         /*
          * Configure the PCIE cap: Max payload size: 256, Max Read
          * Request size: 256, disabling relax ordering.
@@ -1944,8 +1905,8 @@ p2p_bridge(void)
                                MAX_PAYLOAD_256B | MAX_READ_REQ_256B);
     }
 
-    if ((dev = PCI_FIND_DEV(FSL_VENDOR_ID, FSL8548PCIE_DEVICE_ID, NULL)) != NULL ||
-        (dev = PCI_FIND_DEV(FSL_VENDOR_ID, FSL2020EPCIE_DEVICE_ID, NULL)) != NULL) {
+    if ((dev = pci_get_device(FSL_VENDOR_ID, FSL8548PCIE_DEVICE_ID, NULL)) != NULL ||
+        (dev = pci_get_device(FSL_VENDOR_ID, FSL2020EPCIE_DEVICE_ID, NULL)) != NULL) {
         /*
          * Configure the PCIE cap: Max payload size: 256, Max Read
          * Request size: 256, disabling relax ordering.
@@ -1954,8 +1915,8 @@ p2p_bridge(void)
         pci_write_config_dword(dev, FSL8548PCIE_DEV_CTRL_REG,
                                MAX_PAYLOAD_256B | MAX_READ_REQ_256B);
     }
-    if ((dev = PCI_FIND_DEV(BCM4716_VENDOR_ID, BCM4716PCIE_DEVICE_ID, NULL)) != NULL ||
-        (dev = PCI_FIND_DEV(BCM53000_VENDOR_ID, BCM53000PCIE_DEVICE_ID, NULL)) != NULL) {
+    if ((dev = pci_get_device(BCM4716_VENDOR_ID, BCM4716PCIE_DEVICE_ID, NULL)) != NULL ||
+        (dev = pci_get_device(BCM53000_VENDOR_ID, BCM53000PCIE_DEVICE_ID, NULL)) != NULL) {
         uint32 tmp, maxpayld, device_bmp=0, mask;
         unsigned long addr;
         uint16 tmp16, tmp161;
@@ -1964,7 +1925,7 @@ p2p_bridge(void)
         
         pcie0 = dev;
         bus0 = dev->bus->number;
-        if ((pcie1 = PCI_FIND_DEV(BCM53000_VENDOR_ID, BCM53000PCIE_DEVICE_ID, pcie0)) != NULL) {
+        if ((pcie1 = pci_get_device(BCM53000_VENDOR_ID, BCM53000PCIE_DEVICE_ID, pcie0)) != NULL) {
             bus1 = pcie1->bus->number;
         }
 
@@ -2061,7 +2022,7 @@ p2p_bridge(void)
      * The device supports 128, 512, and 1024 max payload sizes. 
      */
     dev = NULL;
-    while ((dev = PCI_FIND_DEV(PCI_VENDOR_ID_PLX, PCI_ANY_ID, dev)) != NULL) {
+    while ((dev = pci_get_device(PCI_VENDOR_ID_PLX, PCI_ANY_ID, dev)) != NULL) {
         if ((dev->device == PLX_PEX8608_DEV_ID) ||
             (dev->device == PLX_PEX8617_DEV_ID)) { 
             uint16 ctrl_reg;
@@ -2589,7 +2550,7 @@ _pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
         }
 #endif
 
-        if ((PCI_FIND_DEV(BCM4704_VENDOR_ID, BCM4704_DEVICE_ID, NULL)) != NULL) {
+        if ((pci_get_device(BCM4704_VENDOR_ID, BCM4704_DEVICE_ID, NULL)) != NULL) {
             /*
              * Decrease the PCI bus priority for the CPU for better overall
              * system performance. This change significantly reduces the
@@ -2607,23 +2568,23 @@ _pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
             }
         }
 
-        if ((PCI_FIND_DEV(SIBYTE_PCI_VENDOR_ID, SIBYTE_PCI_DEVICE_ID, NULL)) != NULL) {
+        if ((pci_get_device(SIBYTE_PCI_VENDOR_ID, SIBYTE_PCI_DEVICE_ID, NULL)) != NULL) {
             /*
              * The BCM91125CPCI CPU boards with a PCI-PCI bridge use the same
              * interrupt line for all switch ships behind the bridge.
              */
-            if (PCI_FIND_DEV(DC21150_VENDOR_ID, DC21150_DEVICE_ID, NULL) ||
-                PCI_FIND_DEV(HINT_HB4_VENDOR_ID, HINT_HB4_DEVICE_ID, NULL) ||
-                PCI_FIND_DEV(PI7C8150_VENDOR_ID, PI7C8150_DEVICE_ID, NULL)) {
+            if (pci_get_device(DC21150_VENDOR_ID, DC21150_DEVICE_ID, NULL) ||
+                pci_get_device(HINT_HB4_VENDOR_ID, HINT_HB4_DEVICE_ID, NULL) ||
+                pci_get_device(PI7C8150_VENDOR_ID, PI7C8150_DEVICE_ID, NULL)) {
                 /*
                  * By default we try to guess the correct IRQ based on the design.
                  * For now we only look at the bridge vendor, but it may be necessary
                  * to look at the switch chip configuration as well.
                  */
                 if (forceirq == -1) {
-                    if ((PCI_FIND_DEV(HINT_HB4_VENDOR_ID, HINT_HB4_DEVICE_ID, NULL)) ||
+                    if ((pci_get_device(HINT_HB4_VENDOR_ID, HINT_HB4_DEVICE_ID, NULL)) ||
                         ((dev->device == BCM5674_DEVICE_ID) &&
-                         (PCI_FIND_DEV(PI7C8150_VENDOR_ID, PI7C8150_DEVICE_ID, NULL)))) {
+                         (pci_get_device(PI7C8150_VENDOR_ID, PI7C8150_DEVICE_ID, NULL)))) {
                         forceirq = 58;
                     } else {
                         forceirq = 56;
@@ -2632,9 +2593,9 @@ _pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
             }
         }
 
-        if (((PCI_FIND_DEV(BCM58525_PCI_VENDOR_ID, BCM58525_PCI_DEVICE_ID, NULL)) != NULL) ||
-            ((PCI_FIND_DEV(BCM58525_PCI_VENDOR_ID, BCM58522_PCI_DEVICE_ID, NULL)) != NULL) ||
-            ((PCI_FIND_DEV(BCM58712_PCI_VENDOR_ID, BCM58712_PCI_DEVICE_ID, NULL)) != NULL) ) {
+        if (((pci_get_device(BCM58525_PCI_VENDOR_ID, BCM58525_PCI_DEVICE_ID, NULL)) != NULL) ||
+            ((pci_get_device(BCM58525_PCI_VENDOR_ID, BCM58522_PCI_DEVICE_ID, NULL)) != NULL) ||
+            ((pci_get_device(BCM58712_PCI_VENDOR_ID, BCM58712_PCI_DEVICE_ID, NULL)) != NULL) ) {
             /* BCM58525/BCM58712 CPU boards support 128 Max payload size */
             if (maxpayload && maxpayload != 128) {
                 maxpayload = 128;
@@ -2838,9 +2799,7 @@ _pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
     }
 
 
-#ifdef LINUX_BDE_DMA_DEVICE_SUPPORT
     ctrl->dma_dev = &dev->dev;
-#endif
 
     if (debug >= 2) {
         gprintk("_pci_probe: configured dev:0x%x rev:0x%x with base_addresses: 0x%lx 0x%lx\n",
@@ -3659,8 +3618,8 @@ _write(int d, uint32_t addr, uint32_t data)
 
 }
 
-static _ISR_RET
-_isr(_ISR_PARAMS(irq, dev_id, iregs))
+static irqreturn_t
+_isr(int irq, void *dev_id)
 {
     bde_ctrl_t *ctrl = (bde_ctrl_t *) dev_id;
 
@@ -3858,7 +3817,7 @@ _interrupt_disconnect(int d)
         ctrl->fmask = 0;
         if (ctrl->isr) {
             /* Primary handler still active */
-            SYNC_IRQ(ctrl->iLine); 
+            synchronize_irq(ctrl->iLine); 
             return 0;
         }
     } else {
@@ -3869,7 +3828,7 @@ _interrupt_disconnect(int d)
         ctrl->isr_data = NULL;
         if (ctrl->isr2) {
             /* Secondary handler still active */
-            SYNC_IRQ(ctrl->iLine); 
+            synchronize_irq(ctrl->iLine); 
             return 0;
         }
     }
@@ -4269,7 +4228,7 @@ lkbde_mem_write(int d, uint32 addr, uint32 *buf)
    *((uint32_t*)full_addr) = *buf;
     return 0;
 }
-LKM_EXPORT_SYM(lkbde_mem_write);
+EXPORT_SYMBOL(lkbde_mem_write);
 
 int
 lkbde_mem_read(int d, uint32 addr, uint32 *buf)
@@ -4284,7 +4243,7 @@ lkbde_mem_read(int d, uint32 addr, uint32 *buf)
     *buf = *((uint32_t*)full_addr);
     return 0;
 }
-LKM_EXPORT_SYM(lkbde_mem_read);
+EXPORT_SYMBOL(lkbde_mem_read);
 #endif /* BCM_SAND_SUPPORT */
 
 static ibde_t _ibde = {
@@ -4479,11 +4438,7 @@ lkbde_get_dma_dev(int d)
         return NULL;
     }
 
-#ifdef LINUX_BDE_DMA_DEVICE_SUPPORT
     return (void *)_devices[d].dma_dev;
-#else
-    return (void *)_devices[d].pci_device;
-#endif
 }
 
 void *
@@ -4665,24 +4620,24 @@ linux_bde_device_bitmap_t* lkbde_get_inst_devs(uint32 inst_id)
 /*
  * Export functions
  */
-LKM_EXPORT_SYM(linux_bde_create);
-LKM_EXPORT_SYM(linux_bde_destroy);
-LKM_EXPORT_SYM(lkbde_get_dev_phys);
-LKM_EXPORT_SYM(lkbde_get_dev_virt);
-LKM_EXPORT_SYM(lkbde_get_dev_resource);
-LKM_EXPORT_SYM(lkbde_get_hw_dev);
-LKM_EXPORT_SYM(lkbde_get_dma_dev);
-LKM_EXPORT_SYM(lkbde_irq_mask_set);
-LKM_EXPORT_SYM(lkbde_irq_mask_get);
-LKM_EXPORT_SYM(lkbde_get_dev_phys_hi);
-LKM_EXPORT_SYM(lkbde_dev_state_set);
-LKM_EXPORT_SYM(lkbde_dev_state_get);
-LKM_EXPORT_SYM(lkbde_dev_instid_set);
-LKM_EXPORT_SYM(lkbde_dev_instid_get);
+EXPORT_SYMBOL(linux_bde_create);
+EXPORT_SYMBOL(linux_bde_destroy);
+EXPORT_SYMBOL(lkbde_get_dev_phys);
+EXPORT_SYMBOL(lkbde_get_dev_virt);
+EXPORT_SYMBOL(lkbde_get_dev_resource);
+EXPORT_SYMBOL(lkbde_get_hw_dev);
+EXPORT_SYMBOL(lkbde_get_dma_dev);
+EXPORT_SYMBOL(lkbde_irq_mask_set);
+EXPORT_SYMBOL(lkbde_irq_mask_get);
+EXPORT_SYMBOL(lkbde_get_dev_phys_hi);
+EXPORT_SYMBOL(lkbde_dev_state_set);
+EXPORT_SYMBOL(lkbde_dev_state_get);
+EXPORT_SYMBOL(lkbde_dev_instid_set);
+EXPORT_SYMBOL(lkbde_dev_instid_get);
 #ifdef BCM_SAND_SUPPORT
-LKM_EXPORT_SYM(lkbde_cpu_write);
-LKM_EXPORT_SYM(lkbde_cpu_read);
-LKM_EXPORT_SYM(lkbde_cpu_pci_register);
+EXPORT_SYMBOL(lkbde_cpu_write);
+EXPORT_SYMBOL(lkbde_cpu_read);
+EXPORT_SYMBOL(lkbde_cpu_pci_register);
 #endif
-LKM_EXPORT_SYM(lkbde_is_dev_managed_by_instance);
-LKM_EXPORT_SYM(lkbde_get_inst_devs);
+EXPORT_SYMBOL(lkbde_is_dev_managed_by_instance);
+EXPORT_SYMBOL(lkbde_get_inst_devs);
