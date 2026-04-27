@@ -29,29 +29,29 @@ MODULE_LICENSE("GPL");
 
 
 static int debug;
-LKM_MOD_PARAM(debug, "i", int, 0);
+module_param(debug, int, 0);
 MODULE_PARM_DESC(debug,
         "Debug level (default 0)");
 
 static int pci_cos;
 
 static int network_transport;
-LKM_MOD_PARAM(network_transport, "i", int, 0);
+module_param(network_transport, int, 0);
 MODULE_PARM_DESC(network_transport,
         "Transport Type (default - Detect from packet)");
 
 static char *base_dev_name = "ptp0";
-LKM_MOD_PARAM(base_dev_name, "s", charp, 0);
+module_param(base_dev_name, charp, 0);
 MODULE_PARM_DESC(base_dev_name,
         "Base device name (default ptp0, ptp1, etc.)");
 
 static int fw_core;
-LKM_MOD_PARAM(fw_core, "i", int, 0);
+module_param(fw_core, int, 0);
 MODULE_PARM_DESC(fw_core,
         "Firmware core (default 0)");
 
 static int vnptp_l2hdr_vlan_prio;
-LKM_MOD_PARAM(vnptp_l2hdr_vlan_prio, "i", int, 0);
+module_param(vnptp_l2hdr_vlan_prio, int, 0);
 MODULE_PARM_DESC(vnptp_l2hdr_vlan_prio,
         "L2 Hdr Vlan priority");
 
@@ -74,18 +74,6 @@ MODULE_PARM_DESC(vnptp_l2hdr_vlan_prio,
 #define DBG_TX_DUMP(_s) do { if (debug & DBG_LVL_TX_DUMP) gprintk _s; } while (0)
 #define DBG_RX_DUMP(_s) do { if (debug & DBG_LVL_RX_DUMP) gprintk _s; } while (0)
 #define DBG_ERR(_s)     do { if (1) gprintk _s; } while (0)
-
-
-#ifdef LINUX_BDE_DMA_DEVICE_SUPPORT
-#define DMA_DEV         device
-#define DMA_ALLOC_COHERENT(d,s,h)       dma_alloc_coherent(d,s,h,GFP_ATOMIC|GFP_DMA32)
-#define DMA_FREE_COHERENT(d,s,a,h)      dma_free_coherent(d,s,a,h)
-#else
-#define DMA_DEV         pci_dev
-#define DMA_ALLOC_COHERENT(d,s,h)       pci_alloc_consistent(d,s,h)
-#define DMA_FREE_COHERENT(d,s,a,h)      pci_free_consistent(d,s,a,h)
-#endif
-
 
 #define BKSYNC_PACKLEN_U8     1
 #define BKSYNC_PACKLEN_U16    2
@@ -238,11 +226,7 @@ enum
              (_ptp_msg_type == IEEE1588_MSGTYPE_SYNC))
 
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,30)
-#define HWTSTAMP_TX_ONESTEP_SYNC 2
-#else
 #include <linux/net_tstamp.h>
-#endif
 
 
 
@@ -698,7 +682,7 @@ struct bksync_ptp_priv {
     volatile bksync_evlog_t *evlog;       
     dma_addr_t              dma_mem;
     int                     dma_mem_size;
-    struct DMA_DEV          *dma_dev;     
+    struct device          *dma_dev;     
     int                     num_pports;
     int                     timekeep_status;
     u32                     mirror_encap_bmp;
@@ -2964,9 +2948,10 @@ static void bksync_ptp_fw_data_alloc(void)
 
     if (ptp_priv->evlog == NULL) {
         DBG_ERR(("Allocate memory for event log\n"));
-        ptp_priv->evlog = DMA_ALLOC_COHERENT(ptp_priv->dma_dev,
+        ptp_priv->evlog = dma_alloc_coherent(ptp_priv->dma_dev,
                                                    ptp_priv->dma_mem_size,
-                                                   &dma_mem);
+                                                   &dma_mem,
+                                                   GFP_ATOMIC|GFP_DMA32);
     }
 
     if (ptp_priv->evlog != NULL) {
@@ -2984,7 +2969,7 @@ static void bksync_ptp_fw_data_alloc(void)
 static void bksync_ptp_fw_data_free(void)
 {
     if (ptp_priv->evlog != NULL) {
-        DMA_FREE_COHERENT(ptp_priv->dma_dev, ptp_priv->dma_mem_size,
+        dma_free_coherent(ptp_priv->dma_dev, ptp_priv->dma_mem_size,
                               (void *)ptp_priv->evlog, ptp_priv->dma_mem);
         ptp_priv->evlog = NULL;
     }

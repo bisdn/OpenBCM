@@ -17,13 +17,8 @@
 
 #include <linux/init.h>
 #include <linux/version.h>
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-#include <linux/config.h>
-#endif
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,32)
 /* The version kconfig.h became available in. */
 #include <linux/kconfig.h>
-#endif
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0)
 #if defined(INCLUDE_KNET) && LINUX_VERSION_CODE >= KERNEL_VERSION(4,0,0)
 #ifdef CONFIG_NF_CONNTRACK_MODULE
@@ -32,20 +27,10 @@
 #endif
 #include <linux/slab.h>
 #endif
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,39)
-#include <linux/smp_lock.h>
-#endif
 #include <linux/module.h>
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5,9,0)
 #define HAVE_COMPAT_IOCTL 1
 #define HAVE_UNLOCKED_IOCTL 1
-#endif
-
-/* Helper defines for multi-version kernel  support */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-#define LKM_2_4
-#else
-#define LKM_2_6
 #endif
 
 #include <linux/kernel.h>   /* printk() */
@@ -67,31 +52,9 @@
 #include <asm/hardirq.h>
 #include <asm/uaccess.h>
 
-#ifdef CONFIG_DEVFS_FS
-#include <linux/devfs_fs_kernel.h>
-#endif
-
 #define PROC_INTERFACE_KERN_VER_3_10 (LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0))
 
 /* Compatibility Macros */
-
-#ifdef LKM_2_4
-
-#include <linux/compatmac.h>
-#include <linux/wrapper.h>
-#define LKM_MOD_PARAM(n,ot,nt,d) MODULE_PARM(n,ot)
-#define LKM_MOD_PARAM_ARRAY(n,ot,nt,c,d) MODULE_PARM(n,ot)
-#define LKM_EXPORT_SYM(s)
-#define _free_netdev kfree
-
-#else /* LKM_2_6 */
-
-#define LKM_MOD_PARAM(n,ot,nt,d) module_param(n,nt,d)
-#define LKM_MOD_PARAM_ARRAY(n,ot,nt,c,d) module_param_array(n,nt,c,d)
-#define LKM_EXPORT_SYM(s) EXPORT_SYMBOL(s)
-#define _free_netdev free_netdev
-
-#endif /* LKM_2_x */
 
 #ifndef list_for_each_safe
 #define list_for_each_safe(l,t,i) t = 0; list_for_each((l),(i))

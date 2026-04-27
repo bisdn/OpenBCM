@@ -17,13 +17,8 @@
 
 #include <linux/init.h>
 #include <linux/version.h>
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)
-#error Kernel too old
-#endif
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,32)
 /* The version kconfig.h became available in. */
 #include <linux/kconfig.h>
-#endif
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0)
 #if defined(INCLUDE_KNET) && LINUX_VERSION_CODE >= KERNEL_VERSION(4,0,0)
 #ifdef CONFIG_NF_CONNTRACK_MODULE
@@ -31,9 +26,6 @@
 #endif
 #endif
 #include <linux/slab.h>
-#endif
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,39)
-#include <linux/smp_lock.h>
 #endif
 #include <linux/module.h>
 
@@ -66,11 +58,6 @@
 #define PROC_INTERFACE_KERN_VER_3_10 (LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0))
 
 /* Compatibility Macros */
-
-#define LKM_MOD_PARAM(n,ot,nt,d) module_param(n,nt,d)
-#define LKM_MOD_PARAM_ARRAY(n,ot,nt,c,d) module_param_array(n,nt,c,d)
-#define LKM_EXPORT_SYM(s) EXPORT_SYMBOL(s)
-#define _free_netdev free_netdev
 
 #ifndef list_for_each_safe
 #define list_for_each_safe(l,t,i) t = 0; list_for_each((l),(i))

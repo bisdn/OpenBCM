@@ -76,97 +76,97 @@ MODULE_DESCRIPTION("Network Device Driver for Broadcom BCM TxRx API");
 MODULE_LICENSE("GPL");
 
 static int debug;
-LKM_MOD_PARAM(debug, "i", int, 0);
+module_param(debug, int, 0);
 MODULE_PARM_DESC(debug,
 "Debug level (default 0)");
 
 static char *mac_addr = NULL;
-LKM_MOD_PARAM(mac_addr, "s", charp, 0);
+module_param(mac_addr, charp, 0);
 MODULE_PARM_DESC(mac_addr,
 "Ethernet MAC address (default 02:10:18:xx:xx:xx)");
 
 static int rx_buffer_size = 9216;
-LKM_MOD_PARAM(rx_buffer_size, "i", int, 0);
+module_param(rx_buffer_size, int, 0);
 MODULE_PARM_DESC(rx_buffer_size,
 "Size of RX packet buffers (default 9216)");
 
 static int default_mtu = 1500;
-LKM_MOD_PARAM(default_mtu, "i", int, 0);
+module_param(default_mtu, int, 0);
 MODULE_PARM_DESC(default_mtu,
 "Default MTU for KNET network interfaces (default 1500)");
 
 static int rx_sync_retry = 1000;
-LKM_MOD_PARAM(rx_sync_retry, "i", int, 0);
+module_param(rx_sync_retry, int, 0);
 MODULE_PARM_DESC(rx_sync_retry,
 "Retries if chain is incomplete on interrupt (default 10)");
 
 static char *base_dev_name = NULL;
-LKM_MOD_PARAM(base_dev_name, "s", charp, 0);
+module_param(base_dev_name, charp, 0);
 MODULE_PARM_DESC(base_dev_name,
 "Base device name (default bcm0, bcm1, etc.)");
 
 static int rcpu_mode = 0;
-LKM_MOD_PARAM(rcpu_mode, "i", int, 0);
+module_param(rcpu_mode, int, 0);
 MODULE_PARM_DESC(rcpu_mode,
 "Enable RCPU encapsulation (default 0)");
 
 static char *rcpu_dmac = NULL;
-LKM_MOD_PARAM(rcpu_dmac, "s", charp, 0);
+module_param(rcpu_dmac, charp, 0);
 MODULE_PARM_DESC(rcpu_dmac,
 "RCPU destination MAC address (by default use L2 destination MAC address)");
 
 static char *rcpu_smac = NULL;
-LKM_MOD_PARAM(rcpu_smac, "s", charp, 0);
+module_param(rcpu_smac, charp, 0);
 MODULE_PARM_DESC(rcpu_smac,
 "RCPU source MAC address (by default use L2 source MAC address)");
 
 static int rcpu_ethertype = 0xde08;
-LKM_MOD_PARAM(rcpu_ethertype, "i", int, 0);
+module_param(rcpu_ethertype, int, 0);
 MODULE_PARM_DESC(rcpu_ethertype,
 "RCPU EtherType (default DE08h)");
 
 static int rcpu_signature = 0;
-LKM_MOD_PARAM(rcpu_signature, "i", int, 0);
+module_param(rcpu_signature, int, 0);
 MODULE_PARM_DESC(rcpu_signature,
 "RCPU Signature (default is PCI device ID)");
 
 static int rcpu_vlan = 1;
-LKM_MOD_PARAM(rcpu_vlan, "i", int, 0);
+module_param(rcpu_vlan, int, 0);
 MODULE_PARM_DESC(rcpu_vlan,
 "RCPU VLAN ID (default 1)");
 
 static int use_rx_skb = 0;
-LKM_MOD_PARAM(use_rx_skb, "i", int, 0);
+module_param(use_rx_skb, int, 0);
 MODULE_PARM_DESC(use_rx_skb,
 "Use socket buffers for receive operation (default 0)");
 
 static int num_rx_prio = 1;
-LKM_MOD_PARAM(num_rx_prio, "i", int, 0);
+module_param(num_rx_prio, int, 0);
 MODULE_PARM_DESC(num_rx_prio,
 "Number of filter priorities per Rx DMA channel");
 
 static int rx_rate[8] = { 100000, 100000, 100000, 100000, 100000, 100000, 100000, 0 };
-LKM_MOD_PARAM_ARRAY(rx_rate, "1-4i", int, NULL, 0);
+module_param_array(rx_rate, int, NULL, 0);
 MODULE_PARM_DESC(rx_rate,
 "Rx rate in packets per second (default 100000)");
 
 static int rx_burst[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-LKM_MOD_PARAM_ARRAY(rx_burst, "1-4i", int, NULL, 0);
+module_param_array(rx_burst, int, NULL, 0);
 MODULE_PARM_DESC(rx_burst,
 "Rx rate burst maximum in packets (default rx_rate/10)");
 
 static int check_rcpu_signature = 0;
-LKM_MOD_PARAM(check_rcpu_signature, "i", int, 0);
+module_param(check_rcpu_signature, int, 0);
 MODULE_PARM_DESC(check_rcpu_signature,
 "Check RCPU Signature for Tx packets from RCPU interfaces");
 
 static int basedev_suspend = 0;
-LKM_MOD_PARAM(basedev_suspend, "i", int, 0);
+module_param(basedev_suspend, int, 0);
 MODULE_PARM_DESC(basedev_suspend,
 "Pause traffic till base device is up (enabled by default in NAPI mode)");
 
 static int mirror_local = 1;
-LKM_MOD_PARAM(mirror_local, "i", int, 0);
+module_param(mirror_local, int, 0);
 MODULE_PARM_DESC(mirror_local,
 "Encapasulate packets based on mirror_to interface configuration, e.g. "
 "encapsulate non-RCPU packets when mirrored to an RCPU interface "
@@ -176,27 +176,27 @@ MODULE_PARM_DESC(mirror_local,
  * Force to add one layer of VLAN tag to untagged packets on Dune devices
  */
 static int force_tagged = 1;
-LKM_MOD_PARAM(force_tagged, "i", int, 0);
+module_param(force_tagged, int, 0);
 MODULE_PARM_DESC(force_tagged,
 "Always tagged with VLAN tag with spceified VID or VSI(default 1)");
 
 static int ft_tpid=0x8100;
-LKM_MOD_PARAM(ft_tpid, "i", int, 0);
+module_param(ft_tpid, int, 0);
 MODULE_PARM_DESC(ft_tpid,
 "Tag Protocol Identifier (TPID) indicates the frame type (default 0x8100)");
 
 static int ft_pri=0;
-LKM_MOD_PARAM(ft_pri, "i", int, 0);
+module_param(ft_pri, int, 0);
 MODULE_PARM_DESC(ft_cfi,
 "Priority (PRI) indicates the frame priority (default 0)");
 
 static int ft_cfi=0;
-LKM_MOD_PARAM(ft_cfi, "i", int, 0);
+module_param(ft_cfi, int, 0);
 MODULE_PARM_DESC(ft_cfi,
 "Canonical Format Indicator (CFI) indicates whether a MAC address is encapsulated in canonical format over different transmission media (default 0)");
 
 static int ft_vid=0;
-LKM_MOD_PARAM(ft_vid, "i", int, 0);
+module_param(ft_vid, int, 0);
 MODULE_PARM_DESC(ft_vid,
 "VLAN ID (VID) indicates the VLAN to which a frame belongs (default 0)");
 
@@ -263,30 +263,21 @@ static int dbg_pkt_enable = 0;
 #if NAPI_SUPPORT
 
 static int use_napi = 0;
-LKM_MOD_PARAM(use_napi, "i", int, 0);
+module_param(use_napi, int, 0);
 MODULE_PARM_DESC(use_napi,
 "Use NAPI interface (default 0)");
 
 static int napi_weight = 64;
-LKM_MOD_PARAM(napi_weight, "i", int, 0);
+module_param(napi_weight, int, 0);
 MODULE_PARM_DESC(napi_weight,
 "Weight of NAPI interfaces (default 64)");
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24)
-#define bkn_napi_enable(_dev, _napi) netif_poll_enable(_dev)
-#define bkn_napi_disable(_dev, _napi) netif_poll_disable(_dev)
-#define bkn_napi_schedule(_dev, _napi) netif_rx_schedule(_dev)
-#define bkn_napi_schedule_prep(_dev, _napi) netif_rx_schedule_prep(_dev)
-#define __bkn_napi_schedule(_dev, _napi) __netif_rx_schedule(_dev)
-#define bkn_napi_complete(_dev, _napi) netif_rx_complete(_dev)
-#else
 #define bkn_napi_enable(_dev, _napi) napi_enable(_napi)
 #define bkn_napi_disable(_dev, _napi) napi_disable(_napi)
 #define bkn_napi_schedule(_dev, _napi) napi_schedule(_napi)
 #define bkn_napi_schedule_prep(_dev, _napi) napi_schedule_prep(_napi)
 #define __bkn_napi_schedule(_dev, _napi) __napi_schedule(_napi)
 #define bkn_napi_complete(_dev, _napi) napi_complete(_napi)
-#endif
 
 #else
 
@@ -322,83 +313,6 @@ static int napi_weight = 0;
 #define NETDEV_UPDATE_TRANS_START_TIME(dev) netif_trans_update(dev)
 #endif
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24))
-#define skb_copy_to_linear_data(_skb, _pkt, _len) \
-    eth_copy_and_sum(_skb, _pkt, _len, 0)
-struct napi_struct { int not_used; };
-#define netif_napi_add(_dev, _napi, _poll, _weight) do { \
-        (_dev)->poll = _poll; \
-        (_dev)->weight = _weight; \
-} while(0)
-#endif
-
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18))
-#define SKB_PADTO(_skb,_len) (((_skb = skb_padto(_skb,_len)) == NULL) ? -1 : 0)
-#else
-#define SKB_PADTO(_skb,_len) skb_padto(_skb,_len)
-#endif
-
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,12))
-#define skb_header_cloned(_skb) \
-    skb_cloned(_skb)
-#endif
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,4,27)
-static inline void *netdev_priv(struct net_device *dev)
-{
-        return dev->priv;
-}
-#endif /* KERNEL_VERSION(2,4,27) */
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,4,23)
-/* Special check for MontaVista 2.4.20 MIPS */
-#if !(defined(MAX_USER_RT_PRIO) && defined(CONFIG_MIPS))
-static inline void free_netdev(struct net_device *dev)
-{
-        kfree(dev);
-}
-#endif
-static inline void netif_poll_disable(struct net_device *dev)
-{
-        while (test_and_set_bit(__LINK_STATE_RX_SCHED, &dev->state)) {
-                /* No hurry. */
-                current->state = TASK_INTERRUPTIBLE;
-                schedule_timeout(1);
-        }
-}
-static inline void netif_poll_enable(struct net_device *dev)
-{
-        clear_bit(__LINK_STATE_RX_SCHED, &dev->state);
-}
-#endif /* KERNEL_VERSION(2,4,23) */
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,4,21)
-static struct sk_buff *skb_pad(struct sk_buff *skb, int pad)
-{
-        struct sk_buff *nskb;
-
-        /* If the skbuff is non linear tailroom is always zero.. */
-        if(skb_tailroom(skb) >= pad)
-        {
-                memset(skb->data+skb->len, 0, pad);
-                return skb;
-        }
-
-        nskb = skb_copy_expand(skb, skb_headroom(skb), skb_tailroom(skb) + pad, GFP_ATOMIC);
-        kfree_skb(skb);
-        if(nskb)
-                memset(nskb->data+nskb->len, 0, pad);
-        return nskb;
-}
-static inline struct sk_buff *skb_padto(struct sk_buff *skb, unsigned int len)
-{
-        unsigned int size = skb->len;
-        if(likely(size >= len))
-                return skb;
-        return skb_pad(skb, len-size);
-}
-#endif /* KERNEL_VERSION(2,4,21) */
-
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,10,0)
 #define bkn_vlan_hwaccel_put_tag(_skb, _proto, _tci) \
     __vlan_hwaccel_put_tag(_skb, _tci)
@@ -411,112 +325,10 @@ static inline struct sk_buff *skb_padto(struct sk_buff *skb, unsigned int len)
 #define ETH_P_8021AD    0x88A8 /* 802.1ad Service VLAN */
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,27)
-#define bkn_dma_mapping_error(d, a) \
-    dma_mapping_error(a)
-#define bkn_pci_dma_mapping_error(d, a) \
-    pci_dma_mapping_error(a)
-#else
-#define bkn_dma_mapping_error(d, a) \
-    dma_mapping_error(d, a)
-#define bkn_pci_dma_mapping_error(d, a) \
-    pci_dma_mapping_error(d, a)
-#endif
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,30)
-enum hwtstamp_tx_types {
-    HWTSTAMP_TX_OFF,
-    HWTSTAMP_TX_ON,
-    HWTSTAMP_TX_ONESTEP_SYNC
-};
-enum {
-    SKBTX_HW_TSTAMP = 1 << 0,
-    SKBTX_SW_TSTAMP = 1 << 1,
-    SKBTX_IN_PROGRESS = 1 << 2,
-};
-struct skb_shared_hwtstamps {
-    ktime_t hwtstamp;
-    ktime_t syststamp;
-};
-struct bkn_skb_shared_info {
-    uint8_t tx_flags;
-    struct skb_shared_hwtstamps hwtstamps;
-};
-#define bkn_skb_shinfo(_skb) ((struct bkn_skb_shared_info *)(unsigned char *)_skb->end)
-#define bkn_skb_tx_flags(_skb) bkn_skb_shinfo(_skb)->tx_flags
-static inline struct skb_shared_hwtstamps *skb_hwtstamps(struct sk_buff *skb)
-{
-    return &bkn_skb_shinfo(skb)->hwtstamps;
-}
-void skb_tstamp_tx(struct sk_buff *orig_skb, struct skb_shared_hwtstamps *hwtstamps)
-{
-}
-static inline void bkn_skb_tx_timestamp(struct sk_buff *skb)
-{
-}
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,26)
-static inline ktime_t ns_to_ktime(u64 ns)
-{
-    static const ktime_t ktime;
-    return ktime;
-}
-#endif
-#elif LINUX_VERSION_CODE < KERNEL_VERSION(2,6,37)
-#include <linux/net_tstamp.h>
-#define HWTSTAMP_TX_ONESTEP_SYNC 2
-enum {
-    SKBTX_HW_TSTAMP = 1 << 0,
-    SKBTX_SW_TSTAMP = 1 << 1,
-    SKBTX_IN_PROGRESS = 1 << 2,
-};
-#define bkn_skb_tx_flags(_skb) skb_shinfo(_skb)->tx_flags.flags
-static inline void bkn_skb_tx_timestamp(struct sk_buff *skb)
-{
-}
-#else
 #include <linux/net_tstamp.h>
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,2,0)
 #define HWTSTAMP_TX_ONESTEP_SYNC 2
-#endif
-
-#define bkn_skb_tx_flags(_skb) skb_shinfo(_skb)->tx_flags
-static inline void bkn_skb_tx_timestamp(struct sk_buff *skb)
-{
-    return skb_tx_timestamp(skb);
-}
-#endif
-
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,26)
-#define bkn_dev_net_set(dev, net)
-#else
-#define bkn_dev_net_set(dev, net) dev_net_set(dev, net)
-#endif
-
-#ifdef LINUX_BDE_DMA_DEVICE_SUPPORT
-#define BKN_DMA_DEV                         device
-#define BKN_DMA_FROMDEV                     DMA_FROM_DEVICE
-#define BKN_DMA_TODEV                       DMA_TO_DEVICE
-#define BKN_DMA_MAP_SINGLE(d,p,s,r)         dma_map_single(d,p,s,r)
-#define BKN_DMA_UNMAP_SINGLE(d,a,s,r)       dma_unmap_single(d,a,s,r)
-#define BKN_DMA_ALLOC_COHERENT(d,s,h)       dma_alloc_coherent(d,s,h,GFP_ATOMIC|GFP_DMA32)
-#define BKN_DMA_FREE_COHERENT(d,s,a,h)      dma_free_coherent(d,s,a,h)
-#define BKN_DMA_MAPPING_ERROR(d,a)          bkn_dma_mapping_error(d,a)
-#else
-#define BKN_DMA_DEV                         pci_dev
-#define BKN_DMA_FROMDEV                     PCI_DMA_FROMDEVICE
-#define BKN_DMA_TODEV                       PCI_DMA_TODEVICE
-#define BKN_DMA_MAP_SINGLE(d,p,s,r)         pci_map_single(d,p,s,r)
-#define BKN_DMA_UNMAP_SINGLE(d,a,s,r)       pci_unmap_single(d,a,s,r)
-#define BKN_DMA_ALLOC_COHERENT(d,s,h)       pci_alloc_consistent(d,s,h)
-#define BKN_DMA_FREE_COHERENT(d,s,a,h)      pci_free_consistent(d,s,a,h)
-#define BKN_DMA_MAPPING_ERROR(d,a)          bkn_pci_dma_mapping_error(d,a)
-#endif
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,29))
-#define BKN_NETDEV_TX_BUSY      NETDEV_TX_BUSY
-#else
-#define BKN_NETDEV_TX_BUSY      1
 #endif
 
 /*
@@ -586,7 +398,7 @@ typedef struct bkn_switch_info_s {
     int ndev_max;               /* Size of indexed array */
     struct list_head rxpf_list; /* Associated Rx packet filters */
     volatile void *base_addr;   /* Base address for PCI register access */
-    struct BKN_DMA_DEV *dma_dev;    /* Required for DMA memory control */
+    struct device *dma_dev;    /* Required for DMA memory control */
     struct pci_dev *pdev;       /* Required for DMA memory control */
     struct net_device *dev;     /* Base network device */
     struct napi_struct napi;    /* New NAPI */
@@ -1069,16 +881,6 @@ static knet_hw_tstamp_ioctl_cmd_cb_f knet_hw_tstamp_ioctl_cmd_cb = NULL;
  * Thread management
  */
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,10))
-static void
-bkn_sleep(int clicks)
-{
-    wait_queue_head_t wq;
-
-    init_waitqueue_head(&wq);
-    sleep_on_timeout(&wq, clicks);
-}
-#else
 static void
 bkn_sleep(int clicks)
 {
@@ -1087,7 +889,6 @@ bkn_sleep(int clicks)
     init_waitqueue_head(&wq);
     wait_event_timeout(wq, 0, clicks);
 }
-#endif
 
 /*
  * On XGS devices bit 15 fo the Transferred Bytes field in
@@ -1921,9 +1722,10 @@ bkn_alloc_dcbs(bkn_switch_info_t *sinfo)
     rx_ring_size = dcb_size * (MAX_RX_DCBS + 1);
     sinfo->dcb_mem_size = tx_ring_size + rx_ring_size * sinfo->rx_chans;
 
-    sinfo->dcb_mem = BKN_DMA_ALLOC_COHERENT(sinfo->dma_dev,
+    sinfo->dcb_mem = dma_alloc_coherent(sinfo->dma_dev,
                                         sinfo->dcb_mem_size,
-                                        &dcb_dma);
+                                        &dcb_dma,
+                                        GFP_ATOMIC|GFP_DMA32);
     if (sinfo->dcb_mem == NULL) {
         gprintk("DCB memory allocation (%d bytes) failed.\n",
                 sinfo->dcb_mem_size);
@@ -1938,7 +1740,7 @@ static void
 bkn_free_dcbs(bkn_switch_info_t *sinfo)
 {
     if (sinfo->dcb_mem != NULL) {
-        BKN_DMA_FREE_COHERENT(sinfo->dma_dev, sinfo->dcb_mem_size,
+        dma_free_coherent(sinfo->dma_dev, sinfo->dcb_mem_size,
                           sinfo->dcb_mem, (dma_addr_t)sinfo->dcb_dma);
         sinfo->dcb_mem = NULL;
     }
@@ -1956,9 +1758,9 @@ bkn_clean_tx_dcbs(bkn_switch_info_t *sinfo)
         if (desc->skb != NULL) {
             DBG_SKB(("Cleaning Tx SKB from DCB %d.\n",
                      sinfo->tx.dirty));
-            BKN_DMA_UNMAP_SINGLE(sinfo->dma_dev,
+            dma_unmap_single(sinfo->dma_dev,
                              desc->skb_dma, desc->dma_size,
-                             BKN_DMA_TODEV);
+                             DMA_TO_DEVICE);
             desc->skb_dma = 0;
             dev_kfree_skb_any(desc->skb);
             desc->skb = NULL;
@@ -1985,9 +1787,9 @@ bkn_clean_rx_dcbs(bkn_switch_info_t *sinfo, int chan)
         if (desc->skb != NULL) {
             DBG_SKB(("Cleaning Rx%d SKB from DCB %d.\n",
                      chan, sinfo->rx[chan].dirty));
-            BKN_DMA_UNMAP_SINGLE(sinfo->dma_dev,
+            dma_unmap_single(sinfo->dma_dev,
                              desc->skb_dma, desc->dma_size,
-                             BKN_DMA_FROMDEV);
+                             DMA_FROM_DEVICE);
             desc->skb_dma = 0;
             dev_kfree_skb_any(desc->skb);
             desc->skb = NULL;
@@ -2526,10 +2328,10 @@ bkn_rx_refill(bkn_switch_info_t *sinfo, int chan)
             desc->dma_size = 0;
         }
 #endif
-        desc->skb_dma = BKN_DMA_MAP_SINGLE(sinfo->dma_dev,
+        desc->skb_dma = dma_map_single(sinfo->dma_dev,
                                        skb->data, desc->dma_size,
-                                       BKN_DMA_FROMDEV);
-        if (BKN_DMA_MAPPING_ERROR(sinfo->dma_dev, desc->skb_dma)) {
+                                       DMA_FROM_DEVICE);
+        if (dma_mapping_error(sinfo->dma_dev, desc->skb_dma)) {
             dev_kfree_skb_any(skb);
             desc->skb = NULL;
             break;
@@ -4312,9 +4114,9 @@ bkn_do_skb_rx(bkn_switch_info_t *sinfo, int chan, int budget)
         skb = desc->skb;
 
         DBG_DCB_RX(("Rx%d SKB DMA done (%d).\n", chan, sinfo->rx[chan].dirty));
-        BKN_DMA_UNMAP_SINGLE(sinfo->dma_dev,
+        dma_unmap_single(sinfo->dma_dev,
                              desc->skb_dma, desc->dma_size,
-                             BKN_DMA_FROMDEV);
+                             DMA_FROM_DEVICE);
         desc->skb_dma = 0;
 
         pktlen = dcb[sinfo->dcb_wsize-1] & 0xffff;
@@ -4800,7 +4602,7 @@ bkn_resume_tx(bkn_switch_info_t *sinfo)
 static void
 bkn_skb_tstamp_copy(struct sk_buff *new_skb, struct sk_buff *skb)
 {
-    bkn_skb_tx_flags(new_skb) = bkn_skb_tx_flags(skb);
+    skb_shinfo(new_skb)->tx_flags = skb_shinfo(skb)->tx_flags;
     new_skb->sk = skb->sk;
 
     return;
@@ -4852,7 +4654,6 @@ bkn_hw_tstamp_tx_work(struct work_struct *work)
         skb = skb_dequeue(&sinfo->tx_ptp_queue);
         ret = bkn_hw_tstamp_tx_set(sinfo, skb);
         if (ret < 0) {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,26))
             ktime_t now;
             now = ktime_get();
             DBG_PTP(("2Step TX Timestamp has not been taken for the current skb (%lld us)\n",
@@ -4865,9 +4666,6 @@ bkn_hw_tstamp_tx_work(struct work_struct *work)
                 DBG_PTP(("2Step TX Timestamp fetch took long time %lld us\n",
                             ktime_us_delta(now, skb->tstamp)));
             }
-#else
-            DBG_PTP(("2Step TX Timestamp has not been taken for the current skb\n"));
-#endif
         }
         dev_kfree_skb_any(skb);
     }
@@ -4896,23 +4694,21 @@ bkn_do_tx(bkn_switch_info_t *sinfo)
         }
         if (desc->skb) {
             DBG_DCB_TX(("Tx SKB DMA done (%d).\n", sinfo->tx.dirty));
-            BKN_DMA_UNMAP_SINGLE(sinfo->dma_dev,
+            dma_unmap_single(sinfo->dma_dev,
                              desc->skb_dma, desc->dma_size,
-                             BKN_DMA_TODEV);
+                             DMA_TO_DEVICE);
 
             if ((KNET_SKB_CB(desc->skb)->hwts == HWTSTAMP_TX_ONESTEP_SYNC) &&
-                (bkn_skb_tx_flags(desc->skb) & SKBTX_IN_PROGRESS)) {
+                (skb_shinfo(desc->skb)->tx_flags & SKBTX_IN_PROGRESS)) {
 
                 if (bkn_hw_tstamp_tx_set(sinfo, desc->skb) < 0) {
                     DBG_PTP(("1Step timestamp has not been taken for the current skb.\n"));
                 }
-                bkn_skb_tx_flags(desc->skb) &= ~SKBTX_IN_PROGRESS;
+                skb_shinfo(desc->skb)->tx_flags &= ~SKBTX_IN_PROGRESS;
             }
 
-            if (bkn_skb_tx_flags(desc->skb) & SKBTX_IN_PROGRESS) {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,26))
+            if (skb_shinfo(desc->skb)->tx_flags & SKBTX_IN_PROGRESS) {
                 desc->skb->tstamp = ktime_get();
-#endif
                 skb_queue_tail(&sinfo->tx_ptp_queue, desc->skb);
                 schedule_work(&sinfo->tx_ptp_work);
             } else {
@@ -5698,7 +5494,6 @@ bkn_open(struct net_device *dev)
     return 0;
 }
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,29))
 static int
 bkn_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
@@ -5779,7 +5574,6 @@ bkn_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
     return -EINVAL;
 }
-#endif
 
 static int
 bkn_change_mtu(struct net_device *dev, int new_mtu)
@@ -5793,45 +5587,6 @@ bkn_change_mtu(struct net_device *dev, int new_mtu)
     return 0;
 }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24)
-static int
-bkn_poll(struct net_device *dev, int *budget)
-{
-    bkn_priv_t *priv = netdev_priv(dev);
-    bkn_switch_info_t *sinfo = priv->sinfo;
-    int cur_budget = *budget;
-    int poll_again = 0;
-    int rx_dcbs_done;
-    unsigned long flags;
-
-    spin_lock_irqsave(&sinfo->lock, flags);
-
-    DBG_NAPI(("NAPI poll on %s.\n", dev->name));
-
-    sinfo->napi_poll_again = 0;
-
-    if (cur_budget > dev->quota) {
-        cur_budget = dev->quota;
-    }
-
-    rx_dcbs_done = dev_do_dma(sinfo, cur_budget);
-
-    *budget -= rx_dcbs_done;
-    cur_budget -= rx_dcbs_done;
-    dev->quota -= rx_dcbs_done;
-
-    if (sinfo->napi_poll_again || cur_budget <= 0) {
-        poll_again = 1;
-        sinfo->napi_not_done++;
-    } else {
-        bkn_napi_poll_complete(sinfo);
-    }
-
-    spin_unlock_irqrestore(&sinfo->lock, flags);
-
-    return poll_again;
-}
-#else
 static int
 bkn_poll(struct napi_struct *napi, int budget)
 {
@@ -5859,7 +5614,6 @@ bkn_poll(struct napi_struct *napi, int budget)
 
     return rx_dcbs_done;
 }
-#endif
 
 static int
 bkn_stop(struct net_device *dev)
@@ -6094,7 +5848,7 @@ bkn_tx(struct sk_buff *skb, struct net_device *dev)
             hdrlen = priv->system_headers_size;
 
             /* Account for extra OAM-TS header. */
-            if ((bkn_skb_tx_flags(skb) & SKBTX_HW_TSTAMP) &&
+            if ((skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) &&
                 (hdrlen > (BKN_DNX_PTCH_2_SIZE))) {
                 /* T_LOCAL_PORT intf will use PTCH_2 + ITMH */
                 hdrlen += BKN_DPP_OTSH_SIZE_BYTE;
@@ -6332,7 +6086,7 @@ bkn_tx(struct sk_buff *skb, struct net_device *dev)
         }
         if (pktlen < (60 + taglen + hdrlen)) {
             pktlen = (60 + taglen + hdrlen);
-            if (SKB_PADTO(skb, pktlen) != 0) {
+            if (skb_padto(skb, pktlen) != 0) {
                 DBG_WARN(("Tx drop: skb_padto failed\n"));
                 stats_flags = u64_stats_update_begin_irqsave(&priv->stats.syncp);
                 u64_stats_inc(&priv->stats.tx_dropped);
@@ -6526,7 +6280,7 @@ bkn_tx(struct sk_buff *skb, struct net_device *dev)
                 pktlen = skb->len;
                 if (pktlen < (60 + taglen + hdrlen)) {
                     pktlen = (60 + taglen + hdrlen);
-                    if (SKB_PADTO(skb, pktlen) != 0) {
+                    if (skb_padto(skb, pktlen) != 0) {
                         DBG_WARN(("Tx drop: skb_padto failed\n"));
                         stats_flags = u64_stats_update_begin_irqsave(&priv->stats.syncp);
                         u64_stats_inc(&priv->stats.tx_dropped);
@@ -6557,15 +6311,15 @@ bkn_tx(struct sk_buff *skb, struct net_device *dev)
         }
 
         /* Do Tx timestamping */
-        if (bkn_skb_tx_flags(skb) & SKBTX_HW_TSTAMP) {
+        if (skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) {
             KNET_SKB_CB(skb)->hwts = priv->tx_hwts;
             if ((priv->port >= 0) && (priv->tx_hwts & HWTSTAMP_TX_ON)) {
                 /* TwoStep Processing of ptp-packets */
                 KNET_SKB_CB(skb)->port = priv->phys_port;
                 bkn_hw_tstamp_tx_config(sinfo, priv->tx_hwts, hdrlen, skb, meta);
 
-                bkn_skb_tx_flags(skb) |= SKBTX_IN_PROGRESS;
-                bkn_skb_tx_timestamp(skb);
+                skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
+                skb_tx_timestamp(skb);
 
             } else if (priv->tx_hwts & HWTSTAMP_TX_ONESTEP_SYNC) {
 
@@ -6576,8 +6330,8 @@ bkn_tx(struct sk_buff *skb, struct net_device *dev)
                                         ((priv->port >= 0) ? meta : NULL));
 
                 if (KNET_SKB_CB(skb)->ts != 0) {
-                    bkn_skb_tx_flags(skb) |= SKBTX_IN_PROGRESS;
-                    bkn_skb_tx_timestamp(skb);
+                    skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
+                    skb_tx_timestamp(skb);
                 }
 
             }
@@ -6596,10 +6350,10 @@ bkn_tx(struct sk_buff *skb, struct net_device *dev)
             pktlen = pktlen + FCS_SZ;
         }
         desc->dma_size = pktlen;
-        desc->skb_dma = BKN_DMA_MAP_SINGLE(sinfo->dma_dev,
+        desc->skb_dma = dma_map_single(sinfo->dma_dev,
                                        pktdata, desc->dma_size,
-                                       BKN_DMA_TODEV);
-        if (BKN_DMA_MAPPING_ERROR(sinfo->dma_dev, desc->skb_dma)) {
+                                       DMA_TO_DEVICE);
+        if (dma_mapping_error(sinfo->dma_dev, desc->skb_dma)) {
             stats_flags = u64_stats_update_begin_irqsave(&priv->stats.syncp);
             u64_stats_inc(&priv->stats.tx_dropped);
             u64_stats_update_end_irqrestore(&priv->stats.syncp, stats_flags);
@@ -6653,7 +6407,7 @@ bkn_tx(struct sk_buff *skb, struct net_device *dev)
         sinfo->tx.pkts_d_dma_resrc++;
         bkn_suspend_tx(sinfo);
         spin_unlock_irqrestore(&sinfo->lock, flags);
-        return BKN_NETDEV_TX_BUSY;
+        return NETDEV_TX_BUSY;
     }
 
     NETDEV_UPDATE_TRANS_START_TIME(dev);
@@ -6938,7 +6692,6 @@ bkn_create_sinfo(int dev_no)
     return sinfo;
 }
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,29))
 static const struct net_device_ops bkn_netdev_ops = {
     .ndo_open            = bkn_open,
     .ndo_stop            = bkn_stop,
@@ -6956,7 +6709,6 @@ static const struct net_device_ops bkn_netdev_ops = {
     .ndo_poll_controller = bkn_poll_controller,
 #endif
 };
-#endif
 
 static void
 bkn_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *drvinfo)
@@ -7099,9 +6851,6 @@ bkn_init_ndev(u8 *mac, char *name)
         DBG_WARN(("Error allocating Ethernet device.\n"));
         return NULL;
     }
-#ifdef SET_MODULE_OWNER
-    SET_MODULE_OWNER(dev);
-#endif
 
     /* Set the device MAC address */
     if ((mac[0] | mac[1] | mac[2] | mac[3] | mac[4] | mac[5]) == 0) {
@@ -7124,20 +6873,8 @@ bkn_init_ndev(u8 *mac, char *name)
 #endif
 
     /* Device vectors */
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,29))
     dev->netdev_ops = &bkn_netdev_ops;
     dev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
-#else
-    dev->open = bkn_open;
-    dev->hard_start_xmit = bkn_tx;
-    dev->stop = bkn_stop;
-    dev->set_multicast_list = bkn_set_multicast_list;
-    dev->do_ioctl = NULL;
-    dev->change_mtu = bkn_change_mtu;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-    dev->poll_controller = bkn_poll_controller;
-#endif
-#endif
     priv = netdev_priv(dev);
     priv->speed = SPEED_UNKNOWN;
     priv->duplex = DUPLEX_UNKNOWN;
@@ -7149,7 +6886,7 @@ bkn_init_ndev(u8 *mac, char *name)
     u64_stats_init(&priv->stats.syncp);
     u64_stats_init(&priv->hw_stats.syncp);
 
-    bkn_dev_net_set(dev, current->nsproxy->net_ns);
+    dev_net_set(dev, current->nsproxy->net_ns);
 
     DBG_VERB(("Created Ethernet device %s.\n", dev->name));
 
@@ -10420,25 +10157,25 @@ bkn_hw_tstamp_ioctl_cmd_cb_unregister(knet_hw_tstamp_ioctl_cmd_cb_f hw_tstamp_io
     return 0;
 }
 
-LKM_EXPORT_SYM(bkn_rx_skb_cb_register);
-LKM_EXPORT_SYM(bkn_rx_skb_cb_unregister);
-LKM_EXPORT_SYM(bkn_tx_skb_cb_register);
-LKM_EXPORT_SYM(bkn_tx_skb_cb_unregister);
-LKM_EXPORT_SYM(bkn_filter_cb_register);
-LKM_EXPORT_SYM(bkn_filter_cb_unregister);
-LKM_EXPORT_SYM(bkn_hw_tstamp_enable_cb_register);
-LKM_EXPORT_SYM(bkn_hw_tstamp_enable_cb_unregister);
-LKM_EXPORT_SYM(bkn_hw_tstamp_disable_cb_register);
-LKM_EXPORT_SYM(bkn_hw_tstamp_disable_cb_unregister);
-LKM_EXPORT_SYM(bkn_hw_tstamp_tx_time_get_cb_register);
-LKM_EXPORT_SYM(bkn_hw_tstamp_tx_time_get_cb_unregister);
-LKM_EXPORT_SYM(bkn_hw_tstamp_tx_meta_get_cb_register);
-LKM_EXPORT_SYM(bkn_hw_tstamp_tx_meta_get_cb_unregister);
-LKM_EXPORT_SYM(bkn_hw_tstamp_ptp_clock_index_cb_register);
-LKM_EXPORT_SYM(bkn_hw_tstamp_ptp_clock_index_cb_unregister);
-LKM_EXPORT_SYM(bkn_hw_tstamp_rx_time_upscale_cb_register);
-LKM_EXPORT_SYM(bkn_hw_tstamp_rx_time_upscale_cb_unregister);
-LKM_EXPORT_SYM(bkn_hw_tstamp_rx_pre_process_cb_register);
-LKM_EXPORT_SYM(bkn_hw_tstamp_rx_pre_process_cb_unregister);
-LKM_EXPORT_SYM(bkn_hw_tstamp_ioctl_cmd_cb_register);
-LKM_EXPORT_SYM(bkn_hw_tstamp_ioctl_cmd_cb_unregister);
+EXPORT_SYMBOL(bkn_rx_skb_cb_register);
+EXPORT_SYMBOL(bkn_rx_skb_cb_unregister);
+EXPORT_SYMBOL(bkn_tx_skb_cb_register);
+EXPORT_SYMBOL(bkn_tx_skb_cb_unregister);
+EXPORT_SYMBOL(bkn_filter_cb_register);
+EXPORT_SYMBOL(bkn_filter_cb_unregister);
+EXPORT_SYMBOL(bkn_hw_tstamp_enable_cb_register);
+EXPORT_SYMBOL(bkn_hw_tstamp_enable_cb_unregister);
+EXPORT_SYMBOL(bkn_hw_tstamp_disable_cb_register);
+EXPORT_SYMBOL(bkn_hw_tstamp_disable_cb_unregister);
+EXPORT_SYMBOL(bkn_hw_tstamp_tx_time_get_cb_register);
+EXPORT_SYMBOL(bkn_hw_tstamp_tx_time_get_cb_unregister);
+EXPORT_SYMBOL(bkn_hw_tstamp_tx_meta_get_cb_register);
+EXPORT_SYMBOL(bkn_hw_tstamp_tx_meta_get_cb_unregister);
+EXPORT_SYMBOL(bkn_hw_tstamp_ptp_clock_index_cb_register);
+EXPORT_SYMBOL(bkn_hw_tstamp_ptp_clock_index_cb_unregister);
+EXPORT_SYMBOL(bkn_hw_tstamp_rx_time_upscale_cb_register);
+EXPORT_SYMBOL(bkn_hw_tstamp_rx_time_upscale_cb_unregister);
+EXPORT_SYMBOL(bkn_hw_tstamp_rx_pre_process_cb_register);
+EXPORT_SYMBOL(bkn_hw_tstamp_rx_pre_process_cb_unregister);
+EXPORT_SYMBOL(bkn_hw_tstamp_ioctl_cmd_cb_register);
+EXPORT_SYMBOL(bkn_hw_tstamp_ioctl_cmd_cb_unregister);
