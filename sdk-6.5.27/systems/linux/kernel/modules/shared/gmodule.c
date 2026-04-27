@@ -67,7 +67,6 @@ gdbg(const char* fmt, ...)
 /*
  * Proc FS Utilities
  */
-#if PROC_INTERFACE_KERN_VER_3_10
 int 
 pprintf(struct seq_file *m, const char* fmt, ...)
 {
@@ -122,93 +121,17 @@ struct proc_ops _gmodule_proc_fops = {
     .proc_write =       _gmodule_proc_write,
     .proc_release =     _gmodule_proc_release,
 };
-#else
-int
-gmodule_vpprintf(char** page_ptr, const char* fmt, va_list args)
-{
-    *page_ptr += vsprintf(*page_ptr, fmt, args);
-    return 0;
-}
-
-int
-gmodule_pprintf(char** page_ptr, const char* fmt, ...)
-{
-    int rv;
-
-    va_list args;
-    va_start(args, fmt);
-    rv = gmodule_vpprintf(page_ptr, fmt, args); 
-    va_end(args);
-    return rv;
-}
-
-static char* _proc_buf = NULL;
-
-int 
-pprintf(struct seq_file *m, const char* fmt, ...)
-{  
-    int rv;
-
-    va_list args;
-    va_start(args, fmt);
-    rv = gmodule_vpprintf(&_proc_buf, fmt, args); 
-    va_end(args);
-    return rv;
-}
-
-#define PSTART(b) _proc_buf = b
-#define PPRINT proc_print
-#define PEND(b) (_proc_buf-b)
-
-static int
-_gmodule_pprint(char* buf)
-{
-    PSTART(buf);
-    _gmodule->pprint(NULL);
-    return PEND(buf);
-}
-
-static int 
-_gmodule_read_proc(char *page, char **start, off_t off,
-		   int count, int *eof, void *data)
-{
-    *eof = 1;
-    return _gmodule_pprint(page);
-}
-
-static int 
-_gmodule_write_proc(struct file *file, const char *buffer,
-		    unsigned long count, void *data)
-{
-    /* Workaround to toggle debugging */
-    if(count > 2) {
-	if(buffer[0] == 'd') {
-	    _dbg_enable = buffer[1] - '0';
-	    GDBG("Debugging Enabled");
-	}
-    }
-    return count;
-}
-#endif
 
 static int
 _gmodule_create_proc(void)
 {
     struct proc_dir_entry* ent;
-#if PROC_INTERFACE_KERN_VER_3_10
     if((ent = proc_create(_gmodule->name,
                           S_IRUGO | S_IWUGO,
                           NULL,
                           &_gmodule_proc_fops)) != NULL) {
         return 0;
     }
-#else
-    if((ent = create_proc_entry(_gmodule->name, S_IRUGO | S_IWUGO, NULL)) != NULL) {
-        ent->read_proc = _gmodule_read_proc;
-        ent->write_proc = _gmodule_write_proc;
-        return 0;
-    }
-#endif
     return -1;
 }
 

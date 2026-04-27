@@ -101,12 +101,6 @@
 #endif
 #endif
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0))
-#include <linux/slab.h>
-#define virt_to_bus virt_to_phys
-#define bus_to_virt phys_to_virt
-#endif
-
 #ifndef KMALLOC_MAX_SIZE
 #define KMALLOC_MAX_SIZE (1UL << (MAX_ORDER - 1 + PAGE_SHIFT))
 #endif
@@ -127,14 +121,8 @@ static int mem_flags = GFP_ATOMIC | GFP_DMA;
 #endif
 
 #ifdef IPROC_CMICD
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,13,0)
 #ifndef COHERENT_ALLOC_USE_DMA_TO_PHYS
 #define COHERENT_ALLOC_USE_DMA_TO_PHYS 1
-#endif
-#else
-#ifndef COHERENT_ALLOC_PHYS_IS_DMA_ADDR
-#define COHERENT_ALLOC_PHYS_IS_DMA_ADDR 1
-#endif
 #endif
 #endif /* IPROC_CMICD */
 
@@ -144,9 +132,6 @@ static int mem_flags = GFP_ATOMIC | GFP_DMA;
  */
 #ifndef COHERENT_ALLOC_USE_DMA_TO_PHYS
 #define COHERENT_ALLOC_USE_DMA_TO_PHYS 0
-#endif
-#ifndef COHERENT_ALLOC_PHYS_IS_DMA_ADDR
-#define COHERENT_ALLOC_PHYS_IS_DMA_ADDR 0
 #endif
 
 #if COHERENT_ALLOC_USE_DMA_TO_PHYS
@@ -161,8 +146,6 @@ static int mem_flags = GFP_ATOMIC | GFP_DMA;
 #if COHERENT_ALLOC_USE_DMA_TO_PHYS
 #define HOST_PHYS_ADDR(_dev, _dma_a, _kvirt_a) \
     ((_dev) ? dma_to_phys((_dev), (_dma_a)) : virt_to_phys(_kvirt_a))
-#elif COHERENT_ALLOC_PHYS_IS_DMA_ADDR
-#define HOST_PHYS_ADDR(_dev, _dma_a, _kvirt_a) (_dma_a)
 #else
 #define HOST_PHYS_ADDR(_dev, _dma_a, _kvirt_a) (virt_to_phys(_kvirt_a))
 #endif
@@ -655,7 +638,7 @@ _edk_mpool_alloc(int dev_id, size_t size)
                 (unsigned long)size);
         return;
     }
-    cpu_pbase = virt_to_bus(dma_vbase);
+    cpu_pbase = virt_to_phys(dma_vbase);
 
     /* Use dma_map_single to obtain DMA bus address or IOVA if IOMMU is present. */
     if (dev) {
@@ -1155,7 +1138,7 @@ _l2p(int d, void *vaddr)
         return 0;
     }
     
-    return ((sal_paddr_t)virt_to_bus(vaddr));
+    return ((sal_paddr_t)virt_to_phys(vaddr));
 }
 
 void *
@@ -1171,7 +1154,7 @@ _p2l(int d, sal_paddr_t paddr)
         return (void *)(vaddr + (sal_vaddr_t)(paddr - _dma_pbase));
     }
     
-    return bus_to_virt(paddr);
+    return phys_to_virt(paddr);
 }
 
 /*

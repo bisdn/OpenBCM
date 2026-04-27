@@ -60,14 +60,6 @@
 #define PCI_USE_INT_INTX     (0)
 #define PCI_USE_INT_MSI     (1)
 #define PCI_USE_INT_MSIX    (2)
-#ifdef CONFIG_PCI_MSI
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,4,110))
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,2,84))
-#define msix_table_size(flags)  ((flags & PCI_MSIX_FLAGS_QSIZE) + 1)
-#endif
-#define msi_control_reg(base)         (base + PCI_MSI_FLAGS)
-#endif
-#endif
 MODULE_AUTHOR("Broadcom Corporation");
 MODULE_DESCRIPTION("Kernel BDE");
 MODULE_LICENSE("GPL");
@@ -274,9 +266,7 @@ typedef struct bde_ctrl_s {
     int bus_no;
     int be_pio;
     int use_msi;
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,2,84))
     struct msix_entry *entries;
-#endif
     int msix_cnt;
     union {
         /* Linux PCI device pointer */
@@ -2147,7 +2137,6 @@ _device_rescan_validate(struct pci_dev *dev)
 
 #ifdef CONFIG_PCI_MSI
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,2,84))
 /**
  * _pci_msix_table_size - return the number of device's MSI-X table entries
  * @dev: pointer to the pci_dev data structure of MSI-X device function
@@ -2157,45 +2146,17 @@ _pci_msix_table_size(struct pci_dev *dev)
 {
     int  nr_entries = 0;
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,4,110))
-    u16 control;
-    int pos;
-
-    pos = pci_find_capability(dev, PCI_CAP_ID_MSIX);
-    if (pos) {
-        pci_read_config_word(dev, msi_control_reg(pos), &control);
-        nr_entries = msix_table_size(control);
-    }
-#else
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,14,0))
-{
-    /* Pass large entry value to enable MSIX to get # of entires */
-    struct msix_entry *entries;
-    entries = kmalloc(sizeof(struct msix_entry) *
-                       PCI_MSIX_FLAGS_QSIZE, GFP_KERNEL);
-    if (entries != NULL) {
-        nr_entries = pci_enable_msix(dev,
-                                      entries, PCI_MSIX_FLAGS_QSIZE);
-        pci_disable_msix(dev);
-        kfree(entries);
-    }
-}
-#else
     nr_entries = pci_msix_vec_count(dev);
-#endif
     if (nr_entries < 0) {
         nr_entries = 0;
     }
-#endif
 
     return nr_entries;
 }
-#endif
 
 static int
 _msi_connect(bde_ctrl_t *ctrl)
 {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,2,84))
     int ret;
     if (ctrl->use_msi == PCI_USE_INT_MSIX) {
         int i;
@@ -2218,23 +2179,8 @@ _msi_connect(bde_ctrl_t *ctrl)
             gprintk("MSIX Table size = %d\n", ctrl->msix_cnt);
         for (i = 0; i < ctrl->msix_cnt; i++)
                 ctrl->entries[i].entry = i;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,12,0)
         ret = pci_enable_msix_range(ctrl->pci_device,
                                            ctrl->entries, ctrl->msix_cnt, ctrl->msix_cnt);
-#else
-        ret = pci_enable_msix(ctrl->pci_device,
-                                           ctrl->entries, ctrl->msix_cnt);
-        if (ret > 0) {
-            /* Not enough vectors available , Retry MSI-X */
-            gprintk("Retrying with MSI-X interrupts = %d\n", ret);
-            ctrl->msix_cnt = ret;
-            msixcnt = ret;
-            ret = pci_enable_msix(ctrl->pci_device,
-                                           ctrl->entries, ctrl->msix_cnt);
-            if (ret != 0)
-                goto er_intx_free;
-        }
-#endif
         if (ret < 0) {
             /* Error */
             goto er_intx_free;
@@ -2243,7 +2189,6 @@ _msi_connect(bde_ctrl_t *ctrl)
             return 0;
         }
     }
-#endif
 
     if (ctrl->use_msi == PCI_USE_INT_MSI) {
         if (pci_enable_msi(ctrl->pci_device) == 0) {
@@ -2259,11 +2204,9 @@ _msi_connect(bde_ctrl_t *ctrl)
         goto er_intx;
     }
     return 0;
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,2,84))
 er_intx_free:
     gprintk("Failed to enable MSI-X interrupts = %d\n", ret);
     kfree(ctrl->entries);
-#endif
 er_intx:
     return -1;
 
@@ -2272,7 +2215,6 @@ er_intx:
 static int
 _msi_disconnect(bde_ctrl_t *ctrl)
 {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,2,84))
     if (ctrl->use_msi == PCI_USE_INT_MSIX) {
         if (ctrl->msix_cnt) {
             pci_disable_msix(ctrl->pci_device);
@@ -2281,7 +2223,6 @@ _msi_disconnect(bde_ctrl_t *ctrl)
             ctrl->msix_cnt = 0;
         }
     }
-#endif
     if (ctrl->use_msi == PCI_USE_INT_MSI) {
         pci_disable_msi(ctrl->pci_device);
     } else {
@@ -2318,7 +2259,6 @@ config_pci_intr_type(struct pci_dev *dev, bde_ctrl_t *ctrl, int iproc)
         }
     }
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,2,84))
     if (ctrl->use_msi == PCI_USE_INT_MSIX) {
         /* check for support MSIX vector */
         ret = _pci_msix_table_size(ctrl->pci_device);
@@ -2327,7 +2267,6 @@ config_pci_intr_type(struct pci_dev *dev, bde_ctrl_t *ctrl, int iproc)
             ctrl->use_msi = PCI_USE_INT_MSI;
         }
     }
-#endif
 
     if (ctrl->use_msi == PCI_USE_INT_MSI) {
         /* check for support MSI vector */
@@ -2880,14 +2819,12 @@ _pci_remove(struct pci_dev* dev)
     /* Free our interrupt handler, if we have one */
     if (ctrl->isr || ctrl->isr2) {
 #ifdef CONFIG_PCI_MSI
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,2,84))
         if (ctrl->use_msi >= PCI_USE_INT_MSIX) {
             int i;
             for (i = 0; i < ctrl->msix_cnt; i++)
                 free_irq(ctrl->entries[i].vector, ctrl);
         }
         else
-#endif
 #endif
         {
             free_irq(ctrl->iLine, ctrl);
@@ -3120,11 +3057,7 @@ _init(void)
     if (use_msi == PCI_USE_INT_NONE) {
         /* Compilation flag determines default value */
 #ifdef BDE_LINUX_USE_MSIX_INTERRUPT
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,2,84))
     use_msi = PCI_USE_INT_MSIX;
-#else
-    use_msi = PCI_USE_INT_MSI;
-#endif
 #elif defined(BDE_LINUX_USE_MSI_INTERRUPT)
       use_msi = PCI_USE_INT_MSI;
 #else
@@ -3776,7 +3709,6 @@ _interrupt_connect(int d,
             if(ret != 0)
                 goto msi_exit;
         }
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,2,84))
         if (ctrl->use_msi == PCI_USE_INT_MSIX) {
             int i;
             for (i = 0; i < ctrl->msix_cnt; i++) {
@@ -3797,7 +3729,6 @@ _interrupt_connect(int d,
             }
         }
         else
-#endif
 #endif
         {
 #if defined(IPROC_CMICD) && defined(CONFIG_OF)
@@ -3929,7 +3860,6 @@ _interrupt_disconnect(int d)
 
     if (isr_active) {
 #ifdef CONFIG_PCI_MSI
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3,2,84))
         if (ctrl->use_msi >= PCI_USE_INT_MSIX) {
             int i;
             for (i = 0; i < ctrl->msix_cnt; i++) {
@@ -3941,7 +3871,6 @@ _interrupt_disconnect(int d)
             }
         }
         else
-#endif
 #endif
 #if defined(IPROC_CMICD) && defined(CONFIG_OF)
         if (of_find_compatible_node(NULL, NULL, IPROC_CMICX_COMPATIBLE)) {
