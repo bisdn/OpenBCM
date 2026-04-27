@@ -26,10 +26,6 @@
 #endif
 #include <linux/slab.h>
 #include <linux/module.h>
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,9,0)
-#define HAVE_COMPAT_IOCTL 1
-#define HAVE_UNLOCKED_IOCTL 1
-#endif
 
 #include <linux/kernel.h>   /* printk() */
 #include <linux/fs.h>       /* everything... */
