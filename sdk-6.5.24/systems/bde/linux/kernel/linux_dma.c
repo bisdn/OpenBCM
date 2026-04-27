@@ -1207,12 +1207,7 @@ _sinval(int d, void *ptr, int length)
 #if defined(dma_cache_wback_inv)
      dma_cache_wback_inv((unsigned long)ptr, length);
 #else
-#if defined(IPROC_CMICD) || defined(BCM958525) || (LINUX_VERSION_CODE >= KERNEL_VERSION(5,10,0))
-    
     dma_sync_single_for_cpu(NULL, (unsigned long)ptr, length, DMA_BIDIRECTIONAL);
-#else
-    dma_cache_sync(NULL, ptr, length, DMA_BIDIRECTIONAL);
-#endif
 #endif
     return 0;
 }
@@ -1223,12 +1218,7 @@ _sflush(int d, void *ptr, int length)
 #if defined(dma_cache_wback_inv)
     dma_cache_wback_inv((unsigned long)ptr, length);
 #else
-#if defined(IPROC_CMICD) || defined(BCM958525) || (LINUX_VERSION_CODE >= KERNEL_VERSION(5,10,0))
-    
     dma_sync_single_for_cpu(NULL, (unsigned long)ptr, length, DMA_BIDIRECTIONAL);
-#else
-    dma_cache_sync(NULL, ptr, length, DMA_BIDIRECTIONAL);
-#endif
 #endif
 
     return 0;
