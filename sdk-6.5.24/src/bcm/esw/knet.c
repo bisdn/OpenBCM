@@ -435,6 +435,87 @@ _esw_knet_linkscan_cb(int unit, soc_port_t port, bcm_port_info_t *info)
                      sizeof(state_msg));
 }
 
+STATIC void
+_esw_knet_netif_set_ability(int unit, bcm_port_t port, kcom_netif_ability_t *ability)
+{
+    bcm_port_ability_t port_ability;
+    int lanes, rv;
+
+    /* SDK has no concept of possible lanes, so report configured lanes */
+    lanes = SOC_INFO(unit).port_num_lanes[port];
+    if (!lanes)
+        lanes = 1;
+
+    sal_memset(&port_ability, 0, sizeof(port_ability));
+    rv = bcm_esw_port_ability_local_get(unit, port, &port_ability);
+    if (!BCM_SUCCESS(rv)) {
+        LOG_WARN(BSL_LS_SOC_COMMON,
+                 (BSL_META_U(unit, "KNET: bcm_port_ability_local_get() failed with %i\n"), rv));
+        return;
+    }
+
+    ability->lanes = lanes;
+
+    if (port_ability.speed_half_duplex & BCM_PORT_ABILITY_10MB)
+        ability->speed_hd |= KCOM_NETIF_SPEED_10MB;
+    if (port_ability.speed_half_duplex & BCM_PORT_ABILITY_100MB)
+        ability->speed_hd |= KCOM_NETIF_SPEED_100MB;
+    if (port_ability.speed_half_duplex & BCM_PORT_ABILITY_1000MB)
+        ability->speed_hd |= KCOM_NETIF_SPEED_1000MB;
+
+    if (port_ability.speed_full_duplex & BCM_PORT_ABILITY_10MB)
+        ability->speed_fd |= KCOM_NETIF_SPEED_10MB;
+    if (port_ability.speed_full_duplex & BCM_PORT_ABILITY_100MB)
+        ability->speed_fd |= KCOM_NETIF_SPEED_100MB;
+    if (port_ability.speed_full_duplex & BCM_PORT_ABILITY_1000MB)
+        ability->speed_fd |= KCOM_NETIF_SPEED_1000MB;
+    if (port_ability.speed_full_duplex & BCM_PORT_ABILITY_2500MB)
+        ability->speed_fd |= KCOM_NETIF_SPEED_2500MB;
+    if (port_ability.speed_full_duplex & BCM_PORT_ABILITY_5000MB)
+        ability->speed_fd |= KCOM_NETIF_SPEED_5000MB;
+    if (port_ability.speed_full_duplex & BCM_PORT_ABILITY_10GB)
+        ability->speed_fd |= KCOM_NETIF_SPEED_10000MB;
+    if (port_ability.speed_full_duplex & BCM_PORT_ABILITY_20GB)
+        ability->speed_fd |= KCOM_NETIF_SPEED_20000MB;
+    if (port_ability.speed_full_duplex & BCM_PORT_ABILITY_25GB)
+        ability->speed_fd |= KCOM_NETIF_SPEED_25000MB;
+    if (port_ability.speed_full_duplex & BCM_PORT_ABILITY_40GB)
+        ability->speed_fd |= KCOM_NETIF_SPEED_40000MB;
+    if (port_ability.speed_full_duplex & BCM_PORT_ABILITY_50GB)
+        ability->speed_fd |= KCOM_NETIF_SPEED_50000MB;
+    if (port_ability.speed_full_duplex & BCM_PORT_ABILITY_100GB)
+        ability->speed_fd |= KCOM_NETIF_SPEED_100000MB;
+
+
+    if (port_ability.pause & BCM_PORT_ABILITY_PAUSE_TX)
+	ability->pause |= KCOM_NETIF_PAUSE_TX;
+    if (port_ability.pause & BCM_PORT_ABILITY_PAUSE_RX)
+	ability->pause |= KCOM_NETIF_PAUSE_RX;
+    if (port_ability.pause & BCM_PORT_ABILITY_PAUSE_ASYMM)
+	ability->pause |= KCOM_NETIF_PAUSE_ASYMM;
+
+    if (port_ability.flags & BCM_PORT_ABILITY_AUTONEG)
+        ability->autoneg = 1;
+
+    if (port_ability.eee & BCM_PORT_ABILITY_EEE_100MB_BASETX)
+        ability->eee |= KCOM_NETIF_EEE_BASET_100MB;
+    if (port_ability.eee & BCM_PORT_ABILITY_EEE_1GB_BASET)
+        ability->eee |= KCOM_NETIF_EEE_BASET_1000MB;
+    if (port_ability.eee & BCM_PORT_ABILITY_EEE_10GB_BASET)
+        ability->eee |= KCOM_NETIF_EEE_BASET_10000MB;
+    if (port_ability.eee & BCM_PORT_ABILITY_EEE_10GB_KX)
+        ability->eee |= KCOM_NETIF_EEE_KX_10000MB;
+    if (port_ability.eee & BCM_PORT_ABILITY_EEE_10GB_KX4)
+        ability->eee |= KCOM_NETIF_EEE_KX4_10000MB;
+    if (port_ability.eee & BCM_PORT_ABILITY_EEE_10GB_KR)
+        ability->eee |= KCOM_NETIF_EEE_KR_10000MB;
+
+    if (port_ability.fec & BCM_PORT_ABILITY_FEC_CL74)
+        ability->fec |= KCOM_NETIF_FEC_CL74;
+    if (port_ability.fec & BCM_PORT_ABILITY_FEC_CL91)
+        ability->fec |= KCOM_NETIF_FEC_CL91;
+}
+
 #endif /* INCLUDE_KNET */
 
 /*
@@ -593,6 +674,9 @@ bcm_esw_knet_netif_create(int unit, bcm_knet_netif_t *netif)
         if (netif->flags & BCM_KNET_NETIF_F_SFP) {
             netif_create.netif.flags |= KCOM_NETIF_F_SFP;
         }
+
+        _esw_knet_netif_set_ability(unit, netif->port,
+                                    &netif_create.netif.port_ability);
     }
     netif_create.netif.cb_user_data = netif->cb_user_data;
     netif_create.netif.vlan = netif->vlan;

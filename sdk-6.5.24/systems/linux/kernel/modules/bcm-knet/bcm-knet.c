@@ -805,6 +805,9 @@ typedef struct bkn_priv_s {
     int speed;
     int duplex;
 
+    /* ability of tracked ports */
+    kcom_netif_ability_t ability;
+
     /* mark packets as forwarded in hardware */
     int offload_fwd_mark;
 
@@ -8782,6 +8785,11 @@ bkn_knet_netif_create(kcom_msg_netif_create_t *kmsg, int len)
         priv->port = kmsg->netif.port;
         priv->phys_port = kmsg->netif.phys_port;
         priv->qnum = kmsg->netif.qnum;
+
+        if (kmsg->netif.flags & KCOM_NETIF_F_TRACKED &&
+            len == sizeof(*kmsg)) {
+            priv->ability = kmsg->netif.port_ability;
+        }
     } else {
         if (device_is_sand(sinfo) && (priv->type == KCOM_NETIF_T_VLAN)) {
             /* PTCH.SSPA */

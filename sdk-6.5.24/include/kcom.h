@@ -126,6 +126,42 @@ typedef struct kcom_msg_hdr_s {
  */
 #define KCOM_NETIF_SYSTEM_HEADERS_SIZE_MAX     27
 
+#define KCOM_NETIF_SPEED_10MB                  (1u << 0)
+#define KCOM_NETIF_SPEED_100MB                 (1u << 1)
+#define KCOM_NETIF_SPEED_1000MB                (1u << 2)
+#define KCOM_NETIF_SPEED_2500MB                (1u << 3)
+#define KCOM_NETIF_SPEED_5000MB                (1u << 4)
+#define KCOM_NETIF_SPEED_10000MB               (1u << 5)
+#define KCOM_NETIF_SPEED_20000MB               (1u << 6)
+#define KCOM_NETIF_SPEED_25000MB               (1u << 7)
+#define KCOM_NETIF_SPEED_40000MB               (1u << 8)
+#define KCOM_NETIF_SPEED_50000MB               (1u << 9)
+#define KCOM_NETIF_SPEED_100000MB              (1u << 10)
+
+#define KCOM_NETIF_EEE_BASET_100MB             (1u << 0)
+#define KCOM_NETIF_EEE_BASET_1000MB            (1u << 1)
+#define KCOM_NETIF_EEE_BASET_10000MB           (1u << 2)
+#define KCOM_NETIF_EEE_KX_10000MB              (1u << 3)
+#define KCOM_NETIF_EEE_KX4_10000MB             (1u << 4)
+#define KCOM_NETIF_EEE_KR_10000MB              (1u << 5)
+
+#define KCOM_NETIF_PAUSE_TX                    (1u << 0)
+#define KCOM_NETIF_PAUSE_RX                    (1u << 1)
+#define KCOM_NETIF_PAUSE_ASYMM                 (1u << 2)
+
+#define KCOM_NETIF_FEC_CL74                    (1u << 0)
+#define KCOM_NETIF_FEC_CL91                    (1u << 1)
+
+typedef struct kcom_netif_ability_s {
+    uint32 speed_hd;
+    uint32 speed_fd;
+    uint32 eee;
+    uint8 autoneg;
+    uint8 lanes;
+    uint8 pause;
+    uint8 fec;
+} kcom_netif_ability_t;
+
 typedef struct kcom_netif_s {
     uint16 id;
     uint8 type;
@@ -140,6 +176,7 @@ typedef struct kcom_netif_s {
     uint8 system_headers_size;
     char name[KCOM_NETIF_NAME_MAX];
     uint8 phys_port;
+    kcom_netif_ability_t port_ability;
 } kcom_netif_t;
 
 /*
