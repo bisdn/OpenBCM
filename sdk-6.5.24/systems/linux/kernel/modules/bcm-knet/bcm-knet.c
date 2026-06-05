@@ -6744,6 +6744,106 @@ bkn_get_ts_info(struct net_device *dev, struct kernel_ethtool_ts_info *info)
     return 0;
 }
 
+void bkn_fill_supported(bkn_priv_t *priv, struct ethtool_link_ksettings *cmd)
+{
+    if (priv->ability.autoneg)
+        ethtool_link_ksettings_add_link_mode(cmd, supported, Autoneg);
+
+    if (priv->ability.pause) {
+        ethtool_link_ksettings_add_link_mode(cmd, supported, Pause);
+
+        if (priv->ability.pause & KCOM_NETIF_PAUSE_ASYMM)
+            ethtool_link_ksettings_add_link_mode(cmd, supported, Asym_Pause);
+    }
+
+    if (priv->flags & KCOM_NETIF_F_SFP) {
+        ethtool_link_ksettings_add_link_mode(cmd, supported, FIBRE);
+        ethtool_link_ksettings_add_link_mode(cmd, supported, Backplane);
+
+        if (priv->ability.speed_fd & KCOM_NETIF_SPEED_1000MB)
+            ethtool_link_ksettings_add_link_mode(cmd, supported, 1000baseKX_Full);
+
+        switch (priv->ability.lanes) {
+        case 1:
+            if (priv->ability.speed_fd & KCOM_NETIF_SPEED_10000MB) {
+                ethtool_link_ksettings_add_link_mode(cmd, supported, 10000baseKR_Full);
+                ethtool_link_ksettings_add_link_mode(cmd, supported, 10000baseCR_Full);
+                ethtool_link_ksettings_add_link_mode(cmd, supported, 10000baseSR_Full);
+                ethtool_link_ksettings_add_link_mode(cmd, supported, 10000baseLR_Full);
+            }
+
+            if (priv->ability.speed_fd & KCOM_NETIF_SPEED_25000MB) {
+                ethtool_link_ksettings_add_link_mode(cmd, supported, 25000baseKR_Full);
+                ethtool_link_ksettings_add_link_mode(cmd, supported, 25000baseCR_Full);
+                ethtool_link_ksettings_add_link_mode(cmd, supported, 25000baseSR_Full);
+            }
+            break;
+        case 2:
+            if (priv->ability.speed_fd & KCOM_NETIF_SPEED_20000MB) {
+                ethtool_link_ksettings_add_link_mode(cmd, supported, 20000baseKR2_Full);
+            }
+
+            if (priv->ability.speed_fd & KCOM_NETIF_SPEED_50000MB) {
+                ethtool_link_ksettings_add_link_mode(cmd, supported, 50000baseKR2_Full);
+                ethtool_link_ksettings_add_link_mode(cmd, supported, 50000baseCR2_Full);
+                ethtool_link_ksettings_add_link_mode(cmd, supported, 50000baseSR2_Full);
+            }
+            break;
+        case 4:
+            /* Helix 4 supports a non-standard 4 * 5G speed - there is no equivalent */
+            if (priv->ability.speed_fd & KCOM_NETIF_SPEED_20000MB) {
+                ethtool_link_ksettings_add_link_mode(cmd, supported, 20000baseKR2_Full);
+            }
+
+            if (priv->ability.speed_fd & KCOM_NETIF_SPEED_40000MB) {
+                ethtool_link_ksettings_add_link_mode(cmd, supported, 40000baseKR4_Full);
+                ethtool_link_ksettings_add_link_mode(cmd, supported, 40000baseCR4_Full);
+                ethtool_link_ksettings_add_link_mode(cmd, supported, 40000baseSR4_Full);
+                ethtool_link_ksettings_add_link_mode(cmd, supported, 40000baseLR4_Full);
+            }
+
+            if (priv->ability.speed_fd & KCOM_NETIF_SPEED_100000MB) {
+                ethtool_link_ksettings_add_link_mode(cmd, supported, 100000baseKR4_Full);
+                ethtool_link_ksettings_add_link_mode(cmd, supported, 100000baseCR4_Full);
+                ethtool_link_ksettings_add_link_mode(cmd, supported, 100000baseSR4_Full);
+                ethtool_link_ksettings_add_link_mode(cmd, supported, 100000baseLR4_ER4_Full);
+            }
+            break;
+        }
+
+        if (priv->ability.fec) {
+            ethtool_link_ksettings_add_link_mode(cmd, supported, FEC_NONE);
+
+            if (priv->ability.fec & KCOM_NETIF_FEC_CL74)
+                ethtool_link_ksettings_add_link_mode(cmd, supported, FEC_BASER);
+            if (priv->ability.fec & KCOM_NETIF_FEC_CL91)
+                ethtool_link_ksettings_add_link_mode(cmd, supported, FEC_RS);
+        }
+    } else {
+        ethtool_link_ksettings_add_link_mode(cmd, supported, TP);
+
+        if (priv->ability.speed_hd & KCOM_NETIF_SPEED_10MB)
+            ethtool_link_ksettings_add_link_mode(cmd, supported, 10baseT_Half);
+        if (priv->ability.speed_hd & KCOM_NETIF_SPEED_100MB)
+            ethtool_link_ksettings_add_link_mode(cmd, supported, 100baseT_Half);
+	if (priv->ability.speed_hd & KCOM_NETIF_SPEED_1000MB)
+            ethtool_link_ksettings_add_link_mode(cmd, supported, 1000baseT_Half);
+
+	if (priv->ability.speed_fd & KCOM_NETIF_SPEED_10MB)
+            ethtool_link_ksettings_add_link_mode(cmd, supported, 10baseT_Full);
+	if (priv->ability.speed_fd & KCOM_NETIF_SPEED_100MB)
+            ethtool_link_ksettings_add_link_mode(cmd, supported, 100baseT_Full);
+	if (priv->ability.speed_fd & KCOM_NETIF_SPEED_1000MB)
+            ethtool_link_ksettings_add_link_mode(cmd, supported, 1000baseT_Full);
+	if (priv->ability.speed_fd & KCOM_NETIF_SPEED_2500MB)
+            ethtool_link_ksettings_add_link_mode(cmd, supported, 2500baseT_Full);
+	if (priv->ability.speed_fd & KCOM_NETIF_SPEED_5000MB)
+            ethtool_link_ksettings_add_link_mode(cmd, supported, 5000baseT_Full);
+	if (priv->ability.speed_fd & KCOM_NETIF_SPEED_10000MB)
+            ethtool_link_ksettings_add_link_mode(cmd, supported, 10000baseT_Full);
+    }
+}
+
 int bkn_get_link_ksettings(struct net_device *dev,
                            struct ethtool_link_ksettings *cmd)
 {
@@ -6774,6 +6874,8 @@ int bkn_get_link_ksettings(struct net_device *dev,
 
     if (priv->flags & KCOM_NETIF_F_TRACKED) {
         cmd->base.port = priv->sfp_port;
+        cmd->lanes = priv->ability.lanes;
+        bkn_fill_supported(priv, cmd);
     }
 
     if (netif_carrier_ok(dev)) {
