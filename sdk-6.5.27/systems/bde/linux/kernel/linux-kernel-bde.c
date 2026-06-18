@@ -662,15 +662,6 @@ iproc_cmicd_get_irqres(ibde_dev_t bde_dev, struct resource *res_irq)
 #include <linux/platform_device.h>
 #include <linux/of.h>
 
-extern int iproc_platform_driver_register(struct platform_driver *drv);
-extern void iproc_platform_driver_unregister(struct platform_driver *drv);
-extern int iproc_platform_device_register(struct platform_device *drv);
-extern void iproc_platform_device_unregister(struct platform_device *drv);
-
-extern struct resource *
-iproc_platform_get_resource(struct platform_device *dev, unsigned int type,
-                            unsigned int num);
-
 #define IPROC_CHIPCOMMONA_BASE  0x18000000
 #define IPROC_CMICD_BASE        0x48000000
 #define IPROC_CMICD_SIZE        0x40000
@@ -690,7 +681,7 @@ iproc_cmicd_probe(struct platform_device *pldev)
         gprintk("iproc_cmicd_probe %s\n", pldev->dev.of_node ? "with device node":"");
     }
 #endif
-    memres = iproc_platform_get_resource(pldev, IORESOURCE_MEM, 0);
+    memres = platform_get_resource(pldev, IORESOURCE_MEM, 0);
     if (memres == NULL) {
         gprintk("Unable to retrieve iProc CMIC resources");
         return -1;
@@ -723,7 +714,7 @@ iproc_cmicd_probe(struct platform_device *pldev)
         ctrl->bde_dev.rev = readl(icfg_chip_id+1) & 0xff;
         iounmap(icfg_chip_id);
         /* Map GICD block in the AXI memory space into CPU address space */
-        memres = iproc_platform_get_resource(pldev, IORESOURCE_MEM, 1);
+        memres = platform_get_resource(pldev, IORESOURCE_MEM, 1);
         if (memres) {
             ctrl->bde_dev.base_address1 = (sal_vaddr_t)ioremap(memres->start, memres->end - memres->start + 1);
             ctrl->iowin[1].addr = memres->start;
@@ -3028,19 +3019,19 @@ _init(void)
 #endif
 #ifdef CONFIG_OF
     if (of_find_compatible_node(NULL, NULL, IPROC_CMICX_COMPATIBLE)) {
-        iproc_platform_driver_register(&iproc_cmicd_driver);
+        platform_driver_register(&iproc_cmicd_driver);
     } else
 #endif
     if (iproc_has_cmicd()) {
         iproc_cmicd_get_memregion(&iproc_cmicd_resources[IPROC_CMICD_RES_MEM]);
         /* PCIe device will be added here */
-        iproc_platform_driver_register(&iproc_cmicd_driver);
+        platform_driver_register(&iproc_cmicd_driver);
 #ifdef CONFIG_OF
         if (!of_find_compatible_node(NULL, NULL, IPROC_CMICD_COMPATIBLE))
 #endif
         {
             /* Register platform device if no device node in dtb */
-            iproc_platform_device_register(&iproc_cmicd_pdev);
+            platform_device_register(&iproc_cmicd_pdev);
         }
     }
 #endif /* IPROC_CMICD */
@@ -3155,7 +3146,7 @@ _cleanup(void)
 #ifdef IPROC_CMICD
 #ifdef CONFIG_OF
     if (of_find_compatible_node(NULL, NULL, IPROC_CMICX_COMPATIBLE)) {
-        iproc_platform_driver_unregister(&iproc_cmicd_driver);
+        platform_driver_unregister(&iproc_cmicd_driver);
     } else
 #endif
     if (iproc_has_cmicd()) {
@@ -3163,9 +3154,9 @@ _cleanup(void)
         if (!of_find_compatible_node(NULL, NULL, IPROC_CMICD_COMPATIBLE))
 #endif
         {
-            iproc_platform_device_unregister(&iproc_cmicd_pdev);
+            platform_device_unregister(&iproc_cmicd_pdev);
         }
-        iproc_platform_driver_unregister(&iproc_cmicd_driver);
+        platform_driver_unregister(&iproc_cmicd_driver);
     }
 #endif
 
