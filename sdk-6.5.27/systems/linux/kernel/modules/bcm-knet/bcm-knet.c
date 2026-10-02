@@ -7012,6 +7012,9 @@ static int bkn_get_module_info(struct net_device *dev,
     if (!(priv->flags & KCOM_NETIF_F_SFP))
         return -EOPNOTSUPP;
 
+    if (!priv->nvmem_eeprom)
+        return -EOPNOTSUPP;
+
     sinfo = priv->sinfo;
 
     if (!sinfo)
@@ -7044,6 +7047,9 @@ static int bkn_get_module_eeprom(struct net_device *dev,
         return -EINVAL;
 
     if (!(priv->flags & KCOM_NETIF_F_SFP))
+        return -EOPNOTSUPP;
+
+    if (!priv->nvmem_eeprom)
         return -EOPNOTSUPP;
 
     if (!ee->len)
@@ -7219,6 +7225,11 @@ bkn_knet_update_sfp_module_info(bkn_priv_t *priv)
     int ret, port;
     uint8_t data[4];
     struct sfp_eeprom_id id;
+
+    if (!priv->nvmem_eeprom) {
+        netdev_warn(dev, "failed to read EEPROM: missing NVMEM device\n");
+        return -EOPNOTSUPP;
+    }
 
     ret = nvmem_device_read(priv->nvmem_eeprom,  0, 4, &data);
     if (ret < 0) {
