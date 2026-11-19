@@ -71,6 +71,7 @@
 #include <linux/nsproxy.h>
 #include <linux/u64_stats_sync.h>
 
+#include <net/devlink.h>
 #include <net/dsfield.h>
 
 MODULE_AUTHOR("Broadcom Corporation");
@@ -490,8 +491,14 @@ typedef struct bkn_switch_info_s {
         uint32_t pkts_d_no_api_buf; /* Rx drop - no API buffers */
     } rx[NUM_RX_CHAN];
 
+    struct devlink *devlink;
+
     void *netifs[256];
 } bkn_switch_info_t;
+
+struct sinfo_devlink_priv {
+    bkn_switch_info_t *sinfo;
+};
 
 #define INVALID_INSTANCE_ID         BDE_DEV_INST_ID_INVALID
 
@@ -814,6 +821,9 @@ typedef struct bkn_priv_s {
     uint8_t sfp_flags;
     uint32_t sfp_module_type;
     uint32_t sfp_eeprom_len;
+
+    struct devlink_port devlink_port;
+
     struct nvmem_device *nvmem_eeprom;
     struct work_struct module_inserted;
 } bkn_priv_t;
@@ -6580,17 +6590,33 @@ bkn_rx_rate_config(bkn_switch_info_t *sinfo)
     spin_unlock_irqrestore(&sinfo->lock, flags);
 }
 
+static int
+bkn_devlink_info_get(struct devlink *dl, struct devlink_info_req *req,
+                     struct netlink_ext_ack *extack)
+{
+    struct sinfo_devlink_priv *sinfo_dl_priv = devlink_priv(dl);
+    bkn_switch_info_t *sinfo = sinfo_dl_priv->sinfo;
+
+    return -EOPNOTSUPP;
+}
+
+static const struct devlink_ops sinfo_devlink_ops = {
+    .info_get = bkn_devlink_info_get,
+};
+
 static void
 bkn_destroy_sinfo(bkn_switch_info_t *sinfo)
 {
     list_del(&sinfo->list);
     bkn_free_dcbs(sinfo);
+    devlink_free(sinfo->devlink);
     kfree(sinfo);
 }
 
 static bkn_switch_info_t *
 bkn_create_sinfo(int dev_no)
 {
+    struct sinfo_devlink_priv *sinfo_dl_priv;
     bkn_switch_info_t *sinfo;
     int chan;
 
@@ -6606,6 +6632,15 @@ bkn_create_sinfo(int dev_no)
     sinfo->dev_no = dev_no;
     sinfo->inst_id = INVALID_INSTANCE_ID;
     sinfo->evt_idx = -1;
+
+    sinfo->devlink = devlink_alloc(&sinfo_devlink_ops, sizeof(*sinfo_dl_priv), sinfo->dma_dev);
+    if (sinfo->devlink == NULL) {
+        kfree(sinfo);
+        return NULL;
+    }
+
+    sinfo_dl_priv = devlink_priv(sinfo->devlink);
+    sinfo_dl_priv->sinfo = sinfo;
 
     /* Allow configuration process to get lock. */
     sinfo->cfg_api_locked = 0;
@@ -8888,6 +8923,43 @@ bkn_knet_reprobe(kcom_msg_reprobe_t *kmsg, int len)
 }
 
 static int
+bkn_netif_devlink_setup(bkn_priv_t *priv)
+{
+    bkn_switch_info_t *sinfo = priv->sinfo;
+    struct devlink_port_attrs attrs = { };
+
+    devlink_port_init(sinfo->devlink, &priv->devlink_port);
+
+    memcpy(attrs.switch_id.id, &sinfo->dev_no, sizeof(sinfo->dev_no));
+    attrs.switch_id.id_len = sizeof(sinfo->dev_no);
+
+    switch (priv->type) {
+    case KCOM_NETIF_T_VLAN:
+    case KCOM_NETIF_T_META:
+        attrs.flavour = DEVLINK_PORT_FLAVOUR_VIRTUAL;
+        break;
+    case KCOM_NETIF_T_PORT:
+        attrs.flavour = DEVLINK_PORT_FLAVOUR_PHYSICAL;
+        attrs.phys.port_number = priv->port;
+        break;
+    }
+
+    attrs.splittable = false;
+
+    devlink_port_attrs_set(&priv->devlink_port, &attrs);
+
+    return devlink_port_register(sinfo->devlink, &priv->devlink_port, priv->id);
+}
+
+static void
+bkn_netif_devlink_teardown(bkn_priv_t *priv)
+{
+    devlink_port_unregister(&priv->devlink_port);
+
+    devlink_port_fini(&priv->devlink_port);
+}
+
+static int
 bkn_knet_netif_create(kcom_msg_netif_create_t *kmsg, int len)
 {
     bkn_switch_info_t *sinfo;
@@ -9053,12 +9125,29 @@ bkn_knet_netif_create(kcom_msg_netif_create_t *kmsg, int len)
 
     spin_unlock_irqrestore(&sinfo->lock, flags);
 
+    if (bkn_netif_devlink_setup(priv)) {
+        DBG_WARN(("Error registering devlink port device.\n"));
+        spin_lock_irqsave(&sinfo->lock, flags);
+        list_del(&priv->list);
+        sinfo->ndevs[id] = NULL;
+        if (priv->flags & KCOM_NETIF_F_TRACKED) {
+            sinfo->netifs[priv->port] = NULL;
+        }
+        spin_unlock_irqrestore(&sinfo->lock, flags);
+        free_netdev(dev);
+        kmsg->hdr.status = KCOM_E_RESOURCE;
+        return sizeof(kcom_msg_hdr_t);
+    }
+
+    SET_NETDEV_DEVLINK_PORT(dev, &priv->devlink_port);
+
     DBG_VERB(("Assigned ID %d to Ethernet device %s\n",
               priv->id, dev->name));
 
     /* Register the kernel Ethernet device */
     if (register_netdev(dev)) {
         DBG_WARN(("Error registering virtual Ethernet device.\n"));
+        bkn_netif_devlink_teardown(priv);
         spin_lock_irqsave(&sinfo->lock, flags);
         list_del(&priv->list);
         sinfo->ndevs[id] = NULL;
@@ -9137,6 +9226,7 @@ bkn_knet_netif_destroy(kcom_msg_netif_destroy_t *kmsg, int len)
     DBG_VERB(("Removing virtual Ethernet device %s (%d).\n",
               dev->name, priv->id));
     unregister_netdev(dev);
+    bkn_netif_devlink_teardown(priv);
     free_netdev(dev);
 
     return sizeof(kcom_msg_hdr_t);
@@ -9947,12 +10037,15 @@ _cleanup(void)
             kfree(sinfo->ndevs);
         }
 
+
         /* Destroy base net device */
         if (sinfo->dev) {
             DBG_VERB(("Removing Ethernet device %s.\n", sinfo->dev->name));
             unregister_netdev(sinfo->dev);
             free_netdev(sinfo->dev);
         }
+
+        devlink_unregister(sinfo->devlink);
 
         DBG_VERB(("Removing switch device.\n"));
         bkn_destroy_sinfo(sinfo);
@@ -10057,9 +10150,12 @@ bkn_knet_dev_init(int d)
         priv->id = -1;
     }
 
+    devlink_register(sinfo->devlink);
+
     /* Register the kernel Ethernet device */
     if (register_netdev(dev)) {
         DBG_WARN(("Error registering base Ethernet device.\n"));
+        devlink_unregister(sinfo->devlink);
         _cleanup();
         return -ENOMEM;
     }
